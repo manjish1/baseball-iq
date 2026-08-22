@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Baseball IQ Challenge</title>
+<meta name="description" content="A timed baseball IQ quiz — learn offense and defense situational reads with streak multipliers and a growing difficulty curve.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚾</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="app-header">
+    <h1>⚾ Baseball IQ Challenge</h1>
+    <p>Read the diamond. Make the right call. Beat the clock.</p>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabPlay" class="active">Play</button>
+    <button id="tabHistory">History</button>
+  </nav>
+
+  <div class="scoreboard">
+    <div class="scorebox">
+      <div class="label">Score</div>
+      <div class="value" id="scoreVal">0</div>
+    </div>
+    <div class="scorebox">
+      <div class="label">Streak</div>
+      <div class="value" id="streakVal">0</div>
+    </div>
+    <div class="scorebox">
+      <div class="label">Multiplier</div>
+      <div class="value" id="multVal">x1.0</div>
+    </div>
+    <div class="scorebox">
+      <div class="label">Best</div>
+      <div class="value" id="highScoreVal">0</div>
+    </div>
+  </div>
+
+  <div id="playView" class="play-view" style="display:block;">
+    <div class="card">
+      <div class="level-badge" id="levelBadge">Level 1: Rookie</div>
+      <div style="font-size:0.8rem; opacity:0.7; margin-bottom:4px;">Level shown as <span id="levelVal">1 - Rookie</span></div>
+
+      <div class="field-container" id="field"></div>
+
+      <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
+
+      <span class="category-tag defense" id="categoryTag">Defense</span>
+      <div class="prompt" id="prompt">Loading question...</div>
+
+      <div class="choices" id="choices"></div>
+
+      <div class="feedback" id="feedback"></div>
+      <button class="next-btn" id="nextBtn" style="display:none;">Next Question →</button>
+    </div>
+  </div>
+
+  <div id="historyView" class="history-view" style="display:none;">
+    <div class="card">
+      <div class="history-controls">
+        <button id="filterAll" class="active">All</button>
+        <button id="filterCorrect">Correct</button>
+        <button id="filterWrong">Wrong</button>
+        <span class="spacer"></span>
+        <button id="clearHistoryBtn" class="danger">Clear history</button>
+      </div>
+      <div class="history-stats" id="historyStats"></div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    Built for studying real baseball situational IQ — offense, defense, and the rules that decide outs and runs.
+  </footer>
+</div>
+
+<div class="levelup-toast" id="levelupToast"></div>
+
+<script src="questions.js"></script>
+<script src="diamond.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
