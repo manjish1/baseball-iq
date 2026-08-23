@@ -192,6 +192,19 @@ function genDefenseGroundBall() {
   return items;
 }
 
+// Describes the OTHER runners on base, excluding whichever base "you" are
+// standing on — saying "You're on 1st. A runner is on 1st." is confusing
+// nonsense, since that runner is you.
+function otherRunnersClause(combo, exceptKey) {
+  const others = [];
+  if (combo.first && exceptKey !== 'first') others.push('1st');
+  if (combo.second && exceptKey !== 'second') others.push('2nd');
+  if (combo.third && exceptKey !== 'third') others.push('3rd');
+  if (others.length === 0) return null;
+  if (others.length === 1) return `A runner is also on ${others[0]}`;
+  return `Runners are also on ${others.join(' and ')}`;
+}
+
 // ---------- OFFENSE: ground ball, runner's decision ----------
 function genOffenseGroundBall() {
   const items = [];
@@ -201,8 +214,8 @@ function genOffenseGroundBall() {
     { key: 'third',  label: '3rd base', next: 'home plate' }
   ];
   const templates = [
-    (base, rd, od, fl) => `You're on ${base}. ${rd}, ${od}. A ground ball is hit to the ${fl}. What do you do?`,
-    (base, rd, od, fl) => `${rd}, ${od}. You're on ${base}, and the ${fl} fields a grounder. What's your move?`
+    (base, other, od, fl) => `You're on ${base}, ${od}.${other ? ' ' + other + '.' : ''} A ground ball is hit to the ${fl}. What do you do?`,
+    (base, other, od, fl) => `${od}. You're on ${base}${other ? ', and ' + other.charAt(0).toLowerCase() + other.slice(1) : ''}. The ${fl} fields a grounder. What's your move?`
   ];
   // "Run to {next base}" and "run because you're forced/it's 2 outs" describe
   // the exact same physical action (sprint to the next base right now) — they
@@ -248,7 +261,7 @@ function genOffenseGroundBall() {
               outs,
               runners: { first: combo.first, second: combo.second, third: combo.third },
               hit: { type: 'ground', pos: fielder.key, label: 'Ground ball' },
-              prompt: tmpl(base.label, combo.desc, OUTS_DESC[outs], fielder.label),
+              prompt: tmpl(base.label, otherRunnersClause(combo, base.key), OUTS_DESC[outs], fielder.label),
               correctText, distractors, explanation
             }));
           }
@@ -635,8 +648,8 @@ const SPECIAL_SCENARIOS = [
     level: 5, category: 'offense', outs: 0, runners: { first:true, second:false, third:true },
     hit: null,
     prompts: [
-      "You're the runner on 3rd, no outs, runners on 1st and 3rd. The defense freezes you near the bag, then turns and throws to 2nd to get the runner from 1st instead. What should you do?",
-      "You're on 3rd, no outs, 1st and 3rd. The defense holds you at 3rd, then throws to 2nd for the other runner. What's your move?"
+      "You're the runner on 3rd, no outs, with a runner also on 1st. The defense freezes you near the bag, then turns and throws to 2nd to get the runner from 1st instead. What should you do?",
+      "You're on 3rd, no outs, with a runner also on 1st. The defense holds you at 3rd, then throws to 2nd for the other runner. What's your move?"
     ],
     correctText: "Take off for home — you're free now",
     distractors: ["Stay frozen at 3rd no matter what", "You're automatically out", "Wait for the umpire to wave you on"],
@@ -679,8 +692,8 @@ const SPECIAL_SCENARIOS = [
     level: 5, category: 'offense', outs: 1, runners: { first:false, second:true, third:true },
     hit: { type:'ground', pos:'3B', label:'Sharp ground ball' },
     prompts: [
-      "You're the runner on 3rd. Runners on 2nd and 3rd, 1 out, 1st base open. A hard grounder is fielded deep by the third baseman. What do you do?",
-      "You're on 3rd, 1 out, runners on 2nd and 3rd, 1st open. A sharp grounder is fielded by the third baseman. What's your read?"
+      "You're the runner on 3rd, with a runner also on 2nd, 1 out, 1st base open. A hard grounder is fielded deep by the third baseman. What do you do?",
+      "You're on 3rd, 1 out, a runner also on 2nd, 1st open. A sharp grounder is fielded by the third baseman. What's your read?"
     ],
     correctText: "Go only if it's safe",
     distractors: ["Always run home", "Always stay", "Run to the dugout"],
