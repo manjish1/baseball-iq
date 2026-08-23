@@ -146,14 +146,13 @@ function genDefenseGroundBall() {
             const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
             push(combo, outs, fielder, tmpl, 1, correctText, distractors, explanation);
           } else if (FAR_THROW_FIELDERS.includes(fielder.key)) {
-            // Young-player version: hold the ball rather than risk the long throw.
-            push(combo, outs, fielder, tmpl, 1, HOLD_TEXT,
+            // No force here, and this is the long throw across the diamond —
+            // always correct to just hold the ball rather than risk an
+            // overthrow. (Kept as one consistent answer at every level, so
+            // the same-looking play never flips right/wrong on you later.)
+            push(combo, outs, fielder, tmpl, oc === 1 ? 1 : 2, HOLD_TEXT,
               shuffle(THROW_OPTIONS).slice(0, 3),
-              `At this age, a long throw across the diamond is risky — nobody was forced to run, so just hold onto the ball instead of risking an overthrow.`);
-            // Older/more skilled version: same play, but now you make the throw.
-            push(combo, outs, fielder, tmpl, oc === 1 ? 3 : 4, THROW_TEXT['1st'],
-              shuffle([...THROW_OPTIONS.filter(b => b !== THROW_TEXT['1st']), HOLD_TEXT]).slice(0, 3),
-              `1st base is open, so nobody else is forced — once you can make the long throw, get the sure out at 1st.`);
+              `Nobody's forced to run here, and that's a long throw across the diamond — hold onto the ball instead of risking an overthrow.`);
           } else {
             // Short, easy throw (pitcher/2nd baseman) — safe even for young players.
             const correctText = THROW_TEXT['1st'];
