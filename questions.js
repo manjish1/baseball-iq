@@ -87,50 +87,81 @@ function combinedThrowText(bases) {
 function occupiedCount(r) { return (r.first?1:0) + (r.second?1:0) + (r.third?1:0); }
 
 // ---------- DEFENSE: ground ball "where's the play" ----------
+// Real coaching note: tiny kids can't reliably make a long throw across the
+// diamond (like 3B or deep SS to 1st). When there's no force, young players
+// are taught to just hold onto the ball rather than risk an overthrow — the
+// "properly make the long throw" answer only becomes correct at higher
+// (older/more skilled) levels. Fielders close to 1st (pitcher, 2nd baseman)
+// don't have this problem even for young kids.
+const HOLD_TEXT = 'Hold onto the ball';
+const FAR_THROW_FIELDERS = ['3B', 'SS'];
+
 function genDefenseGroundBall() {
   const items = [];
   const templates = [
-    (rd, od, fl) => `You're on defense. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. Where should you throw?`,
-    (rd, od, fl) => `You're on defense, ${od}, with ${rd}. The ${fl} fields a grounder. What's the best out?`
+    (rd, od, fl) => `You're on defense. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. Where's the play at?`,
+    (rd, od, fl) => `You're on defense, ${od}, with ${rd}. The ${fl} fields a grounder. Where's the play?`
   ];
-  const WRONG_POOL_2OUT = ['Throw home no matter what', 'Always throw to 3rd', 'Hold the ball and wait'];
+  const WRONG_POOL_2OUT = ['Throw home no matter what', 'Always throw to 3rd', HOLD_TEXT];
+  const basesEmpty = RUNNER_COMBOS[0];
+
+  function push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation) {
+    items.push(makeItem({
+      level: Math.max(1, Math.min(5, level)),
+      category: 'defense',
+      outs,
+      runners: { first: combo.first, second: combo.second, third: combo.third },
+      hit: { type: 'ground', pos: fielder.key, label: 'Ground ball' },
+      prompt: tmpl(combo.desc, OUTS_DESC[outs], fielder.label),
+      correctText, distractors, explanation
+    }));
+  }
+
   for (const combo of RUNNER_COMBOS) {
     const force = leadForceBase(combo);
     const oc = occupiedCount(combo);
     for (let outs = 0; outs <= 2; outs++) {
       for (const fielder of FIELDERS) {
         for (const tmpl of templates) {
-          let correctText, explanation, level, distractors;
           if (outs === 2) {
             const validBases = allValidOutBases(combo);
-            correctText = combinedThrowText(validBases);
-            explanation = validBases.length > 1
+            const correctText = combinedThrowText(validBases);
+            const explanation = validBases.length > 1
               ? `With 2 outs, any out ends the inning — take whichever base is easiest.`
               : `1st base is open, so 1st is the only real out.`;
-            level = Math.min(5, 2 + Math.ceil(oc / 2));
-            distractors = shuffle(WRONG_POOL_2OUT).slice(0, 3);
+            const level = [2, 3, 4, 5][validBases.length - 1];
+            push(combo, outs, fielder, tmpl, level, correctText, shuffle(WRONG_POOL_2OUT).slice(0, 3), explanation);
           } else if (force) {
-            correctText = THROW_TEXT[force];
-            explanation = force === 'home'
+            const correctText = THROW_TEXT[force];
+            const explanation = force === 'home'
               ? `Bases loaded — everyone has to run, even the runner on 3rd. Get him at home.`
               : `That runner has to run because the base behind him is full. That's the best out.`;
-            level = 1 + oc;
-            distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
+            // 1 forced runner = easy, 2 forced (a chain) = tougher, bases loaded = toughest.
+            const level = oc === 1 ? 1 : oc === 2 ? 2 : 4;
+            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
+          } else if (combo === basesEmpty) {
+            const correctText = THROW_TEXT['1st'];
+            const explanation = `Nobody's on base yet — 1st is the only play.`;
+            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            push(combo, outs, fielder, tmpl, 1, correctText, distractors, explanation);
+          } else if (FAR_THROW_FIELDERS.includes(fielder.key)) {
+            // Young-player version: hold the ball rather than risk the long throw.
+            push(combo, outs, fielder, tmpl, 1, HOLD_TEXT,
+              shuffle(THROW_OPTIONS).slice(0, 3),
+              `At this age, a long throw across the diamond is risky — nobody was forced to run, so just hold onto the ball instead of risking an overthrow.`);
+            // Older/more skilled version: same play, but now you make the throw.
+            push(combo, outs, fielder, tmpl, oc === 1 ? 3 : 4, THROW_TEXT['1st'],
+              shuffle([...THROW_OPTIONS.filter(b => b !== THROW_TEXT['1st']), HOLD_TEXT]).slice(0, 3),
+              `1st base is open, so nobody else is forced — once you can make the long throw, get the sure out at 1st.`);
           } else {
-            correctText = THROW_TEXT['1st'];
-            explanation = `1st base is open, so no one else has to run — 1st base is the safe out.`;
-            level = combo === RUNNER_COMBOS[0] ? 1 : 2 + Math.max(0, oc - 1);
-            distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
+            // Short, easy throw (pitcher/2nd baseman) — safe even for young players.
+            const correctText = THROW_TEXT['1st'];
+            const explanation = `1st base is open, so nobody else is forced to run — 1st base is the safe out.`;
+            const level = oc === 1 ? 2 : 3;
+            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
           }
-          items.push(makeItem({
-            level: Math.max(1, Math.min(5, level)),
-            category: 'defense',
-            outs,
-            runners: { first: combo.first, second: combo.second, third: combo.third },
-            hit: { type: 'ground', pos: fielder.key, label: 'Ground ball' },
-            prompt: tmpl(combo.desc, OUTS_DESC[outs], fielder.label),
-            correctText, distractors, explanation
-          }));
         }
       }
     }
@@ -167,18 +198,19 @@ function genOffenseGroundBall() {
         for (const fielder of FIELDERS.slice(0, 3)) {
           for (const tmpl of templates) {
             let correctText, explanation, level;
+            const oc = occupiedCount(combo);
             if (outs === 2) {
               correctText = OPT_CONTACT2;
               explanation = `With 2 outs, always run hard — nothing to lose.`;
-              level = 2 + occupiedCount(combo);
+              level = 2;
             } else if (forced) {
               correctText = OPT_FORCED(base.next);
               explanation = `The base behind you is full, so you have to run.`;
-              level = 1 + occupiedCount(combo);
+              level = oc === 1 ? 1 : oc === 2 ? 2 : 3;
             } else {
               correctText = OPT_READ;
               explanation = `No one is making you run — only go if it's clearly safe.`;
-              level = 2 + occupiedCount(combo);
+              level = oc === 1 ? 2 : 3;
             }
             const pool = [OPT_FORCED(base.next), OPT_READ, OPT_CONTACT2, OPT_FREEZE].filter(o => o !== correctText);
             const distractors = shuffle(pool).slice(0, 3);
@@ -231,11 +263,11 @@ function genOffenseFlyBall() {
           if (outs === 2) {
             correctText = OPT_GO2;
             explanation = `With 2 outs, a catch ends the inning anyway — so just run hard.`;
-            level = 3;
+            level = 2;
           } else {
             correctText = OPT_TAG;
             explanation = `Wait for the catch, touch your base, then run.`;
-            level = 2;
+            level = 1;
           }
           const pool = [OPT_TAG, OPT_STAY, OPT_GO2, OPT_EARLY].filter(o => o !== correctText);
           items.push(makeItem({
@@ -262,18 +294,64 @@ function genDefenseFlyBall() {
   const OF = [
     { key: 'LF', label: 'left field' }, { key: 'CF', label: 'center field' }, { key: 'RF', label: 'right field' }
   ];
+  const correctText = 'Throw to the cutoff man';
   for (const base of bases) {
     for (const outs of [0, 1]) {
       for (const of of OF) {
-        const correctText = THROW_TEXT[base.dest];
-        const distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
+        const distractors = shuffle(THROW_OPTIONS).slice(0, 3);
         items.push(makeItem({
           level: 2, category: 'defense', outs,
           runners: { first:false, second: base.key==='second', third: base.key==='third' },
           hit: { type: 'fly', pos: of.key, label: 'Fly ball, tagging' },
           prompt: `You're on defense. Runner on ${base.label}, ${OUTS_DESC[outs]}. A fly ball to ${of.label} is caught and the runner tags up. Where should the throw go?`,
           correctText, distractors,
-          explanation: `The throw needs to beat the runner to ${base.dest === 'home' ? 'home plate' : base.dest + ' base'}.`
+          explanation: `An outfielder's throw always goes through the cutoff man first — he decides if it keeps going to ${base.dest === 'home' ? 'home plate' : base.dest + ' base'} or gets held up.`
+        }));
+      }
+    }
+  }
+  return items;
+}
+
+// ---------- DEFENSE: outfield coverage — who's the cutoff man, who covers 2nd ----------
+// Simplified rule of thumb: left/center field hits relay through the shortstop
+// (so the second baseman covers 2nd); right field hits relay through the
+// first baseman (so the shortstop covers 2nd).
+function genDefenseCoverage() {
+  const items = [];
+  const ZONES = [
+    { key: 'LF', label: 'left field', cutoff: 'Shortstop', covers2nd: 'Second baseman' },
+    { key: 'CF', label: 'center field', cutoff: 'Shortstop', covers2nd: 'Second baseman' },
+    { key: 'RF', label: 'right field', cutoff: 'First baseman', covers2nd: 'Shortstop' }
+  ];
+  const FLAVORS = [
+    (zoneLabel, rd) => `You're on defense. A single is hit to ${zoneLabel}, with ${rd}.`,
+    (zoneLabel, rd) => `You're on defense, with ${rd}. The batter rips one out to ${zoneLabel}.`
+  ];
+  const FLAVOR_RUNNERS = [RUNNER_COMBOS[0], RUNNER_COMBOS[2], RUNNER_COMBOS[5]];
+  const ALL_FIELDERS = ['Pitcher', 'Catcher', 'First baseman', 'Second baseman', 'Third baseman', 'Shortstop'];
+
+  for (const zone of ZONES) {
+    for (const flavor of FLAVORS) {
+      for (const rd of FLAVOR_RUNNERS) {
+        const runners = { first: rd.first, second: rd.second, third: rd.third };
+
+        const cutoffDistractors = shuffle(ALL_FIELDERS.filter(f => f !== zone.cutoff)).slice(0, 3);
+        items.push(makeItem({
+          level: 3, category: 'defense', outs: 0, runners,
+          hit: { type: 'line', pos: zone.key, label: 'Single' },
+          prompt: `${flavor(zone.label, rd.desc)} Who's the cutoff man for the throw?`,
+          correctText: zone.cutoff, distractors: cutoffDistractors,
+          explanation: `On a ball to ${zone.label}, the ${zone.cutoff.toLowerCase()} lines up as the cutoff man.`
+        }));
+
+        const coverDistractors = shuffle(ALL_FIELDERS.filter(f => f !== zone.covers2nd)).slice(0, 3);
+        items.push(makeItem({
+          level: 3, category: 'defense', outs: 0, runners,
+          hit: { type: 'line', pos: zone.key, label: 'Single' },
+          prompt: `${flavor(zone.label, rd.desc)} Who covers 2nd base?`,
+          correctText: zone.covers2nd, distractors: coverDistractors,
+          explanation: `On a ball to ${zone.label}, the ${zone.cutoff.toLowerCase()} runs out for the relay, so the ${zone.covers2nd.toLowerCase()} covers 2nd base.`
         }));
       }
     }
@@ -400,9 +478,9 @@ const SPECIAL_SCENARIOS = [
       "You're on defense. Bases loaded, 1 out. A fly ball is caught and the runner from 3rd tags up. What's your best play?",
       "You're on defense, 1 out, bases loaded. A fly ball is caught and 3rd tags for home. What do you do?"
     ],
-    correctText: "Throw home",
+    correctText: "Throw to the cutoff man",
     distractors: ["Throw to 1st", "Throw to 2nd", "Don't throw anywhere"],
-    explanation: "Try to get the runner racing home from 3rd."
+    explanation: "An outfielder's throw home always goes through the cutoff man first, so the defense can react."
   },
   {
     level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
@@ -499,9 +577,9 @@ const SPECIAL_SCENARIOS = [
       "You're on defense. Bases loaded, 1 out. A fly ball to right field is caught. Every runner tags up. Where should your throw go?",
       "You're on defense, 1 out, bases loaded, a fly ball to right is caught and all three tag up. Where should your throw go?"
     ],
-    correctText: "Throw home",
+    correctText: "Throw to the cutoff man",
     distractors: ["Throw to 2nd", "Throw to 1st", "Don't throw anywhere"],
-    explanation: "Stopping the run matters most, even with other runners moving too."
+    explanation: "The throw from the outfield goes through the cutoff man, who then decides where it needs to go — stopping the run matters most."
   },
   {
     level: 4, category: 'offense', outs: 0, runners: { first:true, second:false, third:false },
@@ -556,5 +634,6 @@ const QUESTION_BANK = [
   ...genOffenseGroundBall(),
   ...genOffenseFlyBall(),
   ...genDefenseFlyBall(),
+  ...genDefenseCoverage(),
   ...buildSpecialItems()
 ];

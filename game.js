@@ -53,8 +53,14 @@ function streakMultiplier(streak) {
 }
 
 function pickQuestion() {
-  const pool = QUESTION_BANK.filter(q => q.level === state.level && !state.recentPrompts.includes(q.prompt));
-  const fallback = pool.length ? pool : QUESTION_BANK.filter(q => q.level === state.level);
+  const levelPool = QUESTION_BANK.filter(q => q.level === state.level);
+  // Never demand more "unseen" questions than a level actually has, or every
+  // pick past that point falls back to fully random (which can feel repetitive
+  // on thinner levels).
+  const window = Math.min(RECENT_LIMIT, Math.floor(levelPool.length * 0.7));
+  const recentSet = new Set(state.recentPrompts.slice(-window));
+  const pool = levelPool.filter(q => !recentSet.has(q.prompt));
+  const fallback = pool.length ? pool : levelPool;
   const chosen = fallback[Math.floor(Math.random() * fallback.length)];
   state.recentPrompts.push(chosen.prompt);
   if (state.recentPrompts.length > RECENT_LIMIT) state.recentPrompts.shift();
