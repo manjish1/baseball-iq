@@ -4,8 +4,9 @@
    PHRASINGS from a small set of correct, shared baseball rules
    (force-play logic, tag-up logic). This means the same concept
    gets asked many different ways (different fielder, different
-   depth, different wording) so a player learns the underlying
-   read instead of memorizing "answer B".
+   wording) so a player learns the underlying read instead of
+   memorizing "answer B". Answers are kept short and simple —
+   built for a young player learning the game.
 
    A smaller hand-written set covers special rules that don't
    reduce to simple combinatorics (infield fly rule, force-outs
@@ -22,10 +23,10 @@ function shuffle(arr) {
   return a;
 }
 
-// Build a {prompt, choices, correct, explanation, level, category, outs, runners, hit}
-// item from raw pieces, shuffling the choice order so the correct slot varies.
 function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+// Build a {prompt, choices, correct, explanation, level, category, outs, runners, hit}
+// item from raw pieces, shuffling the choice order so the correct slot varies.
 function makeItem({ level, category, outs, runners, hit, prompt, correctText, distractors, explanation }) {
   const options = shuffle([correctText, ...distractors]);
   return {
@@ -37,17 +38,18 @@ function makeItem({ level, category, outs, runners, hit, prompt, correctText, di
 }
 
 const OUTS_DESC = ['no outs', '1 out', '2 outs'];
-const BASE_NAMES = ['1st base', '2nd base', '3rd base', 'home plate'];
+const THROW_TEXT = { '1st': 'Throw to 1st', '2nd': 'Throw to 2nd', '3rd': 'Throw to 3rd', home: 'Throw home' };
+const THROW_OPTIONS = Object.values(THROW_TEXT);
 
 const RUNNER_COMBOS = [
-  { first:false, second:false, third:false, desc: 'Bases empty' },
-  { first:true,  second:false, third:false, desc: 'Runner on 1st' },
-  { first:false, second:true,  third:false, desc: 'Runner on 2nd only (1st base open)' },
-  { first:false, second:false, third:true,  desc: 'Runner on 3rd only (1st and 2nd open)' },
-  { first:true,  second:true,  third:false, desc: 'Runners on 1st and 2nd' },
-  { first:true,  second:false, third:true,  desc: 'Runners on 1st and 3rd' },
-  { first:false, second:true,  third:true,  desc: 'Runners on 2nd and 3rd (1st base open)' },
-  { first:true,  second:true,  third:true,  desc: 'Bases loaded' }
+  { first:false, second:false, third:false, desc: 'bases empty' },
+  { first:true,  second:false, third:false, desc: 'a runner on 1st' },
+  { first:false, second:true,  third:false, desc: 'a runner on 2nd' },
+  { first:false, second:false, third:true,  desc: 'a runner on 3rd' },
+  { first:true,  second:true,  third:false, desc: 'runners on 1st and 2nd' },
+  { first:true,  second:false, third:true,  desc: 'runners on 1st and 3rd' },
+  { first:false, second:true,  third:true,  desc: 'runners on 2nd and 3rd' },
+  { first:true,  second:true,  third:true,  desc: 'the bases loaded' }
 ];
 
 const FIELDERS = [
@@ -61,9 +63,25 @@ const FIELDERS = [
 // Determine which base the *lead forced runner* must reach (or null if no force).
 function leadForceBase(r) {
   if (r.first && r.second && r.third) return 'home';
-  if (r.first && r.second) return '3rd base';
-  if (r.first) return '2nd base';
+  if (r.first && r.second) return '3rd';
+  if (r.first) return '2nd';
   return null; // runner(s) on 2nd/3rd only, or bases empty -> nobody existing is forced
+}
+
+// With 2 outs, ANY out ends the inning, so every forced base plus 1st (the
+// batter) is equally correct. Combine them into one honest answer instead of
+// pretending only one base is right.
+function allValidOutBases(r) {
+  const valid = ['1st'];
+  if (r.first) valid.push('2nd');
+  if (r.first && r.second) valid.push('3rd');
+  if (r.first && r.second && r.third) valid.push('home');
+  return valid;
+}
+function combinedThrowText(bases) {
+  if (bases.length === 1) return THROW_TEXT[bases[0]];
+  if (bases.length === 2) return `Throw to ${bases[0]} or ${bases[1]}`;
+  return `Throw to the nearest bag`;
 }
 
 function occupiedCount(r) { return (r.first?1:0) + (r.second?1:0) + (r.third?1:0); }
@@ -72,36 +90,38 @@ function occupiedCount(r) { return (r.first?1:0) + (r.second?1:0) + (r.third?1:0
 function genDefenseGroundBall() {
   const items = [];
   const templates = [
-    (rd, od, fl) => `${rd}, ${od}. Ground ball to the ${fl}. Where's the play?`,
-    (rd, od, fl) => `${od}, ${rd}. A grounder is hit right to the ${fl}. What's the smartest out for the defense?`
+    (rd, od, fl) => `You're on defense. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. Where should you throw?`,
+    (rd, od, fl) => `You're on defense, ${od}, with ${rd}. The ${fl} fields a grounder. What's the best out?`
   ];
+  const WRONG_POOL_2OUT = ['Throw home no matter what', 'Always throw to 3rd', 'Hold the ball and wait'];
   for (const combo of RUNNER_COMBOS) {
     const force = leadForceBase(combo);
     const oc = occupiedCount(combo);
     for (let outs = 0; outs <= 2; outs++) {
       for (const fielder of FIELDERS) {
         for (const tmpl of templates) {
-          let correctText, explanation, level;
+          let correctText, explanation, level, distractors;
           if (outs === 2) {
-            correctText = '1st base';
-            explanation = force
-              ? `With 2 outs, any force out ends the inning — take the closest, easiest one (usually 1st).`
-              : `With 2 outs and 1st base open, there's no force anywhere — 1st base is the sure out.`;
+            const validBases = allValidOutBases(combo);
+            correctText = combinedThrowText(validBases);
+            explanation = validBases.length > 1
+              ? `With 2 outs, any out ends the inning — take whichever base is easiest.`
+              : `1st base is open, so 1st is the only real out.`;
             level = Math.min(5, 2 + Math.ceil(oc / 2));
+            distractors = shuffle(WRONG_POOL_2OUT).slice(0, 3);
           } else if (force) {
-            correctText = force;
+            correctText = THROW_TEXT[force];
             explanation = force === 'home'
-              ? `Bases loaded — every runner is forced, including at home. Get the lead runner at the plate.`
-              : `The lead runner is forced to advance because the base(s) behind him are occupied — that's the most valuable out.`;
-            level = 1 + oc; // empty/1 runner handled separately below (force null)
+              ? `Bases loaded — everyone has to run, even the runner on 3rd. Get him at home.`
+              : `That runner has to run because the base behind him is full. That's the best out.`;
+            level = 1 + oc;
+            distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
           } else {
-            correctText = '1st base';
-            explanation = combo.first
-              ? `No force situation matches here.`
-              : `1st base is open, so nobody on 2nd or 3rd is forced to run — the only guaranteed out is the batter at 1st.`;
+            correctText = THROW_TEXT['1st'];
+            explanation = `1st base is open, so no one else has to run — 1st base is the safe out.`;
             level = combo === RUNNER_COMBOS[0] ? 1 : 2 + Math.max(0, oc - 1);
+            distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
           }
-          const distractors = shuffle(BASE_NAMES.filter(b => b !== correctText)).slice(0, 3);
           items.push(makeItem({
             level: Math.max(1, Math.min(5, level)),
             category: 'defense',
@@ -127,20 +147,19 @@ function genOffenseGroundBall() {
     { key: 'third',  label: '3rd base', next: 'home plate' }
   ];
   const templates = [
-    (base, rd, od, fl) => `You're the runner on ${base}. ${rd}, ${od}. Ground ball is hit to the ${fl}. What should you do?`,
-    (base, rd, od, fl) => `${od}. ${rd}, and you're the one standing on ${base}. A grounder is hit to the ${fl}. What's your move?`
+    (base, rd, od, fl) => `You're on ${base}. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. What do you do?`,
+    (base, rd, od, fl) => `${od}, ${rd}. You're on ${base} and the ${fl} fields a grounder. What's your move?`
   ];
-  const OPT_FORCED = (next) => `Run hard toward ${next} — you're forced to go`;
-  const OPT_READ = `Read the play first — you're not forced, so advance only if it's safe`;
-  const OPT_CONTACT2 = `Go on contact no matter what — with 2 outs there's nothing to lose`;
-  const OPT_FREEZE = `Freeze on your base and don't move`;
+  const OPT_FORCED = (next) => `Run to ${next}`;
+  const OPT_READ = `Wait and watch`;
+  const OPT_CONTACT2 = `Run no matter what`;
+  const OPT_FREEZE = `Stay on your base`;
 
   for (const combo of RUNNER_COMBOS) {
     for (const base of bases) {
       if (!combo[base.key]) continue;
-      // is THIS runner forced? He's forced if all bases behind him (toward home... no, toward 1st) are occupied.
       let forced;
-      if (base.key === 'first') forced = true; // runner on 1st is always forced (batter behind him)
+      if (base.key === 'first') forced = true;
       else if (base.key === 'second') forced = combo.first;
       else forced = combo.first && combo.second;
 
@@ -150,15 +169,15 @@ function genOffenseGroundBall() {
             let correctText, explanation, level;
             if (outs === 2) {
               correctText = OPT_CONTACT2;
-              explanation = `With 2 outs, every runner goes hard on contact — a caught ball ends the inning regardless, so there's no risk in running.`;
+              explanation = `With 2 outs, always run hard — nothing to lose.`;
               level = 2 + occupiedCount(combo);
             } else if (forced) {
               correctText = OPT_FORCED(base.next);
-              explanation = `You have to vacate your base because a trailing runner (or the batter) is entitled to it — standing still just makes you an easy force out.`;
+              explanation = `The base behind you is full, so you have to run.`;
               level = 1 + occupiedCount(combo);
             } else {
               correctText = OPT_READ;
-              explanation = `Nobody is forcing you to run since the base behind you is open — take off only if you're sure it's safe.`;
+              explanation = `No one is making you run — only go if it's clearly safe.`;
               level = 2 + occupiedCount(combo);
             }
             const pool = [OPT_FORCED(base.next), OPT_READ, OPT_CONTACT2, OPT_FREEZE].filter(o => o !== correctText);
@@ -181,59 +200,51 @@ function genOffenseGroundBall() {
 }
 
 // ---------- OFFENSE: fly ball tag-up decisions ----------
+// Kept simple on purpose: the core rule a young player needs is "wait for the
+// catch and touch your base before running" — unless there are 2 outs, in
+// which case you just go. No shallow/medium/deep judgment calls here.
 function genOffenseFlyBall() {
   const items = [];
   const bases = [
     { key: 'second', label: '2nd', pos: 'second base' },
     { key: 'third',  label: '3rd', pos: 'third base' }
   ];
-  const depths = ['shallow', 'medium', 'deep'];
   const OF = [
     { key: 'LF', label: 'left field' },
     { key: 'CF', label: 'center field' },
     { key: 'RF', label: 'right field' }
   ];
   const templates = [
-    (base, od, depth, of) => `You're on ${base} base, ${od}. A ${depth} fly ball to ${of} is caught. What should you do?`,
-    (base, od, depth, of) => `${od}. Runner on ${base}, ${depth} fly ball hit to ${of} — it's caught. What's the right read?`
+    (base, od, of) => `You're on ${base} base, ${od}. A fly ball to ${of} is caught. What do you do?`,
+    (base, od, of) => `${od}. Runner on ${base}, a fly ball to ${of} gets caught. What's the right move?`
   ];
-  const OPT_STAY = `Stay at the bag — it's too shallow to tag and advance safely`;
-  const OPT_MED = `Tag up, then read the throw — advance only if it's clearly safe`;
-  const OPT_DEEP = `Tag up and go hard the instant it's caught — it's deep enough`;
-  const OPT_2OUT = `Get a big secondary lead and go hard at contact — if it's caught, the inning's over anyway`;
+  const OPT_TAG = `Tag up, then run`;
+  const OPT_STAY = `Stay on your base`;
+  const OPT_GO2 = `Run right away`;
+  const OPT_EARLY = `Run before it's caught`;
 
   for (const base of bases) {
-    for (const depth of depths) {
-      for (let outs = 0; outs <= 2; outs++) {
-        for (const of of OF) {
-          for (const tmpl of templates) {
-            let correctText, explanation, level;
-            if (outs === 2) {
-              correctText = OPT_2OUT;
-              explanation = `With 2 outs, a caught fly ends the inning no matter what you do — so you break hard at contact with nothing to lose.`;
-              level = 4;
-            } else if (depth === 'shallow') {
-              correctText = OPT_STAY;
-              explanation = `Too shallow — an outfielder charging in has an easy throw to double you off if you go.`;
-              level = 1;
-            } else if (depth === 'deep') {
-              correctText = OPT_DEEP;
-              explanation = `That's plenty deep — tag up and take the extra base.`;
-              level = 2;
-            } else {
-              correctText = OPT_MED;
-              explanation = `Medium depth is a judgment call — tag up, watch the throw, and only commit if it's clearly safe.`;
-              level = 3;
-            }
-            const pool = [OPT_STAY, OPT_MED, OPT_DEEP, OPT_2OUT].filter(o => o !== correctText);
-            items.push(makeItem({
-              level, category: 'offense', outs,
-              runners: { first:false, second: base.key==='second', third: base.key==='third' },
-              hit: { type: 'fly', pos: of.key, label: `${depth[0].toUpperCase()+depth.slice(1)} fly` },
-              prompt: tmpl(base.label, OUTS_DESC[outs], depth, of.label),
-              correctText, distractors: shuffle(pool), explanation
-            }));
+    for (let outs = 0; outs <= 2; outs++) {
+      for (const of of OF) {
+        for (const tmpl of templates) {
+          let correctText, explanation, level;
+          if (outs === 2) {
+            correctText = OPT_GO2;
+            explanation = `With 2 outs, a catch ends the inning anyway — so just run hard.`;
+            level = 3;
+          } else {
+            correctText = OPT_TAG;
+            explanation = `Wait for the catch, touch your base, then run.`;
+            level = 2;
           }
+          const pool = [OPT_TAG, OPT_STAY, OPT_GO2, OPT_EARLY].filter(o => o !== correctText);
+          items.push(makeItem({
+            level, category: 'offense', outs,
+            runners: { first:false, second: base.key==='second', third: base.key==='third' },
+            hit: { type: 'fly', pos: of.key, label: 'Fly ball' },
+            prompt: tmpl(base.label, OUTS_DESC[outs], of.label),
+            correctText, distractors: shuffle(pool), explanation
+          }));
         }
       }
     }
@@ -245,8 +256,8 @@ function genOffenseFlyBall() {
 function genDefenseFlyBall() {
   const items = [];
   const bases = [
-    { key: 'second', label: '2nd', dest: '3rd base' },
-    { key: 'third',  label: '3rd', dest: 'home plate' }
+    { key: 'second', label: '2nd', dest: '3rd' },
+    { key: 'third',  label: '3rd', dest: 'home' }
   ];
   const OF = [
     { key: 'LF', label: 'left field' }, { key: 'CF', label: 'center field' }, { key: 'RF', label: 'right field' }
@@ -254,14 +265,15 @@ function genDefenseFlyBall() {
   for (const base of bases) {
     for (const outs of [0, 1]) {
       for (const of of OF) {
-        const distractors = shuffle(BASE_NAMES.filter(b => b !== base.dest)).slice(0, 3);
+        const correctText = THROW_TEXT[base.dest];
+        const distractors = shuffle(THROW_OPTIONS.filter(b => b !== correctText)).slice(0, 3);
         items.push(makeItem({
           level: 2, category: 'defense', outs,
           runners: { first:false, second: base.key==='second', third: base.key==='third' },
-          hit: { type: 'fly', pos: of.key, label: 'Deep fly, tagging' },
-          prompt: `Runner on ${base.label}, ${OUTS_DESC[outs]}. A deep fly to ${of.label} is caught and the runner tags up. Where does the outfielder's throw need to go to have a chance?`,
-          correctText: base.dest, distractors,
-          explanation: `The throw has to beat the tagging runner to the base he's advancing to — ${base.dest}.`
+          hit: { type: 'fly', pos: of.key, label: 'Fly ball, tagging' },
+          prompt: `You're on defense. Runner on ${base.label}, ${OUTS_DESC[outs]}. A fly ball to ${of.label} is caught and the runner tags up. Where should the throw go?`,
+          correctText, distractors,
+          explanation: `The throw needs to beat the runner to ${base.dest === 'home' ? 'home plate' : base.dest + ' base'}.`
         }));
       }
     }
@@ -275,254 +287,254 @@ const SPECIAL_SCENARIOS = [
     level: 3, category: 'defense', outs: 0, runners: { first:true, second:true, third:false },
     hit: { type:'fly', pos:'2B', label:'Infield popup' },
     prompts: [
-      "Runners on 1st and 2nd, less than 2 outs. Batter hits a routine popup in fair territory, catchable by an infielder with ordinary effort. What's the call?",
-      "Less than 2 outs, runners on 1st and 2nd. The batter skies a routine popup over the infield in fair ground. What happens?"
+      "You're on defense. Runners on 1st and 2nd, less than 2 outs. The batter hits an easy popup over the infield. What's the call?",
+      "You're on defense, less than 2 outs, runners on 1st and 2nd. An easy popup goes up over the infield. What happens?"
     ],
-    correctText: "Infield Fly Rule — batter is automatically out, whether caught or not",
-    distractors: ["No special rule — it's a normal fly ball", "Automatic double play", "Ground rule double"],
-    explanation: "Infield Fly Rule applies with runners on 1st & 2nd (or bases loaded) and fewer than 2 outs on a catchable fair popup — it protects the runners from a cheap double play."
+    correctText: "Infield Fly — batter is out",
+    distractors: ["Not a special play", "Automatic double play", "Ground rule double"],
+    explanation: "Runners on 1st and 2nd, less than 2 outs, easy popup: the batter is out no matter what."
   },
   {
     level: 3, category: 'defense', outs: 1, runners: { first:true, second:true, third:true },
     hit: { type:'fly', pos:'SS', label:'Infield popup' },
     prompts: [
-      "Bases loaded, 1 out. The batter pops it up in fair territory, an easy catch for the shortstop. What's the call?",
-      "1 out, bases loaded. Routine infield popup in fair ground. What's the ruling?"
+      "You're on defense. Bases loaded, 1 out. The batter hits an easy popup over the infield. What's the call?",
+      "You're on defense, 1 out, bases loaded. An easy popup goes up over the infield. What's the ruling?"
     ],
-    correctText: "Infield Fly Rule — batter is automatically out, whether caught or not",
-    distractors: ["No special rule applies here", "It's a force play only", "Ground rule double"],
-    explanation: "Bases loaded with fewer than 2 outs is also an Infield Fly Rule situation — same protection for the runners."
+    correctText: "Infield Fly — batter is out",
+    distractors: ["Not a special play", "It's a force play only", "Ground rule double"],
+    explanation: "Bases loaded with less than 2 outs is also an Infield Fly — same rule."
   },
   {
     level: 3, category: 'offense', outs: 0, runners: { first:true, second:true, third:false },
     hit: { type:'fly', pos:'2B', label:'Infield popup (fly called)' },
     prompts: [
-      "Infield Fly Rule has been called on a popup with runners on 1st and 2nd. What should the runners do?",
-      "Umpire signals Infield Fly on a popup, runners on 1st and 2nd. What's the right move for both runners?"
+      "You're a runner on 1st or 2nd. Infield Fly is called on a popup. What should you do?",
+      "You're one of the runners on 1st or 2nd when the umpire calls Infield Fly on a popup. What's the right move?"
     ],
-    correctText: "Hold near their bases — the batter's already out, so tag up if you want to advance on the catch",
-    distractors: ["Sprint to the next base immediately", "Both run home", "Ignore the play"],
-    explanation: "Since the batter is out regardless, runners aren't forced — advance only at their own risk, tagging up if it's caught."
+    correctText: "Stay near your base",
+    distractors: ["Sprint to the next base", "Both run home", "Ignore the play"],
+    explanation: "The batter's already out, so you don't have to run. Tag up if you want to move up."
   },
   {
     level: 4, category: 'defense', outs: 1, runners: { first:true, second:false, third:true },
     hit: null,
     prompts: [
-      "1st and 3rd, 1 out. The runner on 1st breaks for 2nd to draw a throw. The catcher sees the runner on 3rd inching down the line. What should the catcher do?",
-      "Runners on 1st and 3rd, 1 out. 1st tries to steal 2nd, but 3rd is drifting off the bag. What's the catcher's read?"
+      "You're the catcher. 1st and 3rd, 1 out. The runner on 1st takes off for 2nd. The runner on 3rd is inching down the line. What should you do?",
+      "You're the catcher, runners on 1st and 3rd, 1 out. 1st tries to steal 2nd, but 3rd is drifting off the bag. What's your read?"
     ],
-    correctText: "Look the runner on 3rd back, and only throw to 2nd if he isn't a threat to score",
-    distractors: ["Always throw through to 2nd no matter what", "Throw to 3rd base immediately", "Do nothing and concede 2nd base"],
-    explanation: "Classic 1st-and-3rd defensive read — never give up a run just to get the trail runner."
+    correctText: "Check 3rd before throwing",
+    distractors: ["Always throw to 2nd", "Throw to 3rd right away", "Do nothing at all"],
+    explanation: "Never let a run score just to get the runner stealing 2nd."
   },
   {
     level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
     hit: { type:'ground', pos:'CF', label:'Single to CF' },
     prompts: [
-      "Runner on 2nd, no outs. Single to center field — the runner rounds 3rd and heads home. Who does the center fielder throw to?",
-      "No outs, runner on 2nd scores on a single to center. Where should the outfielder's throw go first?"
+      "You're the outfielder. Runner on 2nd, no outs. A single to center field scores him. Who do you throw to?",
+      "You're the outfielder, no outs, runner on 2nd scores on your single to center. Where should your throw go first?"
     ],
-    correctText: "The cutoff man lined up between CF and home, who decides whether to let it go through or hold it",
-    distractors: ["Directly to the catcher, skip the cutoff", "2nd base", "1st base"],
-    explanation: "Throws to the plate go through a cutoff so the defense can react if a trail runner is also moving, or cut a throw that has no chance."
+    correctText: "Throw to the cutoff man",
+    distractors: ["Throw straight home", "Throw to 2nd", "Throw to 1st"],
+    explanation: "The cutoff man helps the defense decide where the throw should really go."
   },
   {
     level: 4, category: 'defense', outs: 0, runners: { first:true, second:false, third:true },
     hit: { type:'ground', pos:'RF', label:'Single to RF' },
     prompts: [
-      "Runners on 1st and 3rd, no outs. Single to right field scores the runner from 3rd; the runner from 1st rounds 2nd. What's the cutoff man's read?",
-      "No outs, 1st and 3rd. A single to right scores the run and the trail runner takes 2nd. What should the cutoff man do?"
+      "You're the cutoff man. Runners on 1st and 3rd, no outs. A single to right scores the run and the other runner takes 2nd. What do you do?",
+      "You're the cutoff man, no outs, 1st and 3rd. A single to right scores the run. What's your job?"
     ],
-    correctText: "Line up with the throw home; if the run is unstoppable, cut it and go after the trail runner advancing",
-    distractors: ["Stand at 2nd base only", "Stand in the outfield grass", "Stand directly behind home plate"],
-    explanation: "A smart cutoff man cuts an unstoppable throw home and redirects it to get the extra out elsewhere."
+    correctText: "Line up for a cutoff throw",
+    distractors: ["Stand at 2nd base", "Stand in the outfield", "Stand behind home"],
+    explanation: "If the run can't be stopped, the cutoff man can still get the other runner."
   },
   {
     level: 3, category: 'offense', outs: 0, runners: { first:false, second:true, third:false },
     hit: { type:'bunt', pos:'3B', label:'Sac bunt' },
     prompts: [
-      "Runner on 2nd, no outs. Your coach calls for a sacrifice bunt. What's the goal?",
-      "No outs, runner on 2nd. The bunt sign is on. Why?"
+      "You're the batter. Runner on 2nd, no outs. Your coach calls for a sacrifice bunt. What's the goal?",
+      "You're the batter, no outs, runner on 2nd. The bunt sign is on. Why?"
     ],
-    correctText: "Give yourself up to move the runner to 3rd, in scoring position for a sac fly",
-    distractors: ["Bunt for a base hit only, ignore the runner", "Try to steal 3rd instead", "Take the pitch"],
-    explanation: "A sac bunt trades an out to advance the runner into better scoring position."
+    correctText: "Move the runner to 3rd",
+    distractors: ["Get a hit only", "Steal 3rd instead", "Take the pitch"],
+    explanation: "A bunt can trade an out to move the runner closer to home."
   },
   {
     level: 3, category: 'defense', outs: 0, runners: { first:true, second:false, third:false },
     hit: { type:'line', pos:'SS', label:'Line drive (caught)' },
     prompts: [
-      "Runner on 1st, 0 outs. Line drive is snared by the shortstop. What's the best play right after the catch?",
-      "0 outs, runner on 1st takes off as a liner is smoked to short — and caught. What's next?"
+      "You're on defense. Runner on 1st, no outs. A line drive is caught by the shortstop. What's the best play next?",
+      "You're on defense. No outs, runner on 1st takes off as a line drive is caught by the shortstop. What's next?"
     ],
-    correctText: "Check 1st base — double off the runner if he broke for 2nd",
-    distractors: ["Throw home", "Nothing else needed, one out is enough", "Throw to 3rd"],
-    explanation: "Runners often break early on a hard-hit ball — if he's off the bag, it's an easy double play back to 1st."
+    correctText: "Check 1st base",
+    distractors: ["Throw home", "Do nothing else", "Throw to 3rd"],
+    explanation: "If the runner left early, throwing to 1st is an easy second out."
   },
   {
     level: 3, category: 'offense', outs: 1, runners: { first:true, second:false, third:false },
     hit: { type:'line', pos:'SS', label:'Line drive (caught)' },
     prompts: [
-      "Runner on 1st, 1 out. A hard line drive is caught by the shortstop. What should you do?",
-      "1 out, you're leading off 1st. A sharp liner gets speared by the shortstop. What now?"
+      "You're the runner on 1st, 1 out. A hard line drive is caught by the shortstop. What should you do?",
+      "You're on 1st, 1 out. A line drive gets caught by the shortstop. What now?"
     ],
-    correctText: "Get back to 1st immediately to avoid the double play",
-    distractors: ["Keep running to 2nd", "Stop halfway and watch", "Run to 3rd"],
-    explanation: "You must retouch 1st before the ball beats you back, or you'll be doubled off."
+    correctText: "Get back to 1st fast",
+    distractors: ["Keep running to 2nd", "Stop and watch", "Run to 3rd"],
+    explanation: "If you left too early, hurry back before you're doubled off."
   },
   {
     level: 4, category: 'offense', outs: 0, runners: { first:true, second:false, third:false },
     hit: null,
     prompts: [
-      "Runner on 1st, 0 outs. The batter crushes a deep fly ball toward the gap that's likely extra bases. What should the runner on 1st do at first crack of the bat?",
-      "0 outs, you're on 1st. Batter smokes one to the gap — could be a hit, could be caught. What's your first move?"
+      "You're the runner on 1st, no outs. The batter hits it deep to the gap — might be a hit, might be caught. What's your first move?",
+      "You're on 1st, no outs. Your teammate smacks one to the gap. What's your first move?"
     ],
-    correctText: "Go back partway to read it, then take off hard once it's clear it won't be caught (\"read and go\")",
-    distractors: ["Sprint to 2nd immediately, assuming it's a hit", "Freeze on 1st until the ball lands", "Tag up even though it's a gap shot"],
-    explanation: "With fewer than 2 outs, runners always read a deep fly before committing full speed, in case it's caught."
+    correctText: "Wait, then run if it's a hit",
+    distractors: ["Sprint to 2nd right away", "Freeze on 1st", "Tag up like it's caught"],
+    explanation: "Watch first to see if it drops, then take off."
   },
   {
     level: 4, category: 'defense', outs: 1, runners: { first:true, second:true, third:true },
-    hit: { type:'fly', pos:'CF', label:'Medium fly' },
+    hit: { type:'fly', pos:'CF', label:'Fly ball' },
     prompts: [
-      "Bases loaded, 1 out. Medium fly ball to the outfield is caught. The runner from 3rd tags and goes. What's the defense's best play?",
-      "1 out, bases loaded. A medium-depth fly is caught and 3rd tags home. What should the defense do?"
+      "You're on defense. Bases loaded, 1 out. A fly ball is caught and the runner from 3rd tags up. What's your best play?",
+      "You're on defense, 1 out, bases loaded. A fly ball is caught and 3rd tags for home. What do you do?"
     ],
-    correctText: "Throw home through the cutoff man to try to get the runner tagging from 3rd",
-    distractors: ["Throw to 1st base", "Throw to 2nd base", "Hold the ball — no play is possible"],
-    explanation: "A tagging runner from 3rd on a medium fly is often beatable with a strong, accurate relay home."
+    correctText: "Throw home",
+    distractors: ["Throw to 1st", "Throw to 2nd", "Don't throw anywhere"],
+    explanation: "Try to get the runner racing home from 3rd."
   },
   {
     level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
     hit: { type:'bunt', pos:'3B', label:'Bunt' },
     prompts: [
-      "Runner on 2nd, no outs. Batter squares to bunt down the third-base line. Where's the play?",
-      "No outs, runner on 2nd, batter drops a bunt toward third. What's the defense's move?"
+      "You're on defense. Runner on 2nd, no outs. The batter bunts toward third. Where's the play?",
+      "You're on defense, no outs, runner on 2nd. A bunt rolls toward third. What's your move?"
     ],
-    correctText: "Field it and throw to 1st — no force at 3rd since the runner started there and 1st is open",
-    distractors: ["Automatically throw to 3rd for the lead runner", "Throw home", "Ignore the bunt"],
-    explanation: "The runner on 2nd isn't forced (1st is empty), so the standard play is the sure out at first."
+    correctText: "Throw to 1st",
+    distractors: ["Throw to 3rd", "Throw home", "Ignore the bunt"],
+    explanation: "The runner on 2nd isn't forced, so take the easy out at first."
   },
   {
     level: 3, category: 'offense', outs: 1, runners: { first:true, second:false, third:false },
     hit: { type:'bunt', pos:'1B', label:'Sac bunt' },
     prompts: [
-      "Runner on 1st, 1 out. Batter lays down a sacrifice bunt. What must the runner on 1st do?",
-      "1 out, you're on 1st. Your teammate squares around and bunts. What are you required to do?"
+      "You're the runner on 1st, 1 out. Your teammate lays down a sacrifice bunt. What must you do?",
+      "You're on 1st, 1 out. Your teammate bunts. What are you required to do?"
     ],
-    correctText: "Advance to 2nd — he's forced to vacate 1st for the batter-runner",
-    distractors: ["Stay on 1st", "Run to 3rd immediately", "Head back to the dugout"],
-    explanation: "The batter becoming a runner forces everyone ahead of him on the bases to move up."
+    correctText: "Run to 2nd",
+    distractors: ["Stay on 1st", "Run to 3rd", "Go to the dugout"],
+    explanation: "The batter needs 1st base, so you have to move up."
   },
   {
     level: 5, category: 'defense', outs: 0, runners: { first:true, second:true, third:false },
     hit: { type:'fly', pos:'3B', label:'Popup near foul line' },
     prompts: [
-      "Runners on 1st and 2nd, no outs. A popup drifts near the foul line and the umpire has already declared Infield Fly. The 3rd baseman lets it drop untouched. What happens?",
-      "Infield Fly is already called on a popup drifting toward the line, runners on 1st and 2nd. The fielder lets it fall untouched. What's the result?"
+      "You're on defense. Runners on 1st and 2nd, no outs. Infield Fly is already called on a popup near the foul line, and your fielder lets it drop. What happens?",
+      "You're on defense. Infield Fly is already called on a popup near the line, runners on 1st and 2nd. Your fielder lets it fall. What's the result?"
     ],
-    correctText: "If it lands fair, the batter is still out (the call already happened) — but if it rolls foul, it's just a foul ball",
-    distractors: ["It's an automatic double play", "The batter is safe with no outs recorded", "It counts as a base hit"],
-    explanation: "Infield Fly is declared regardless of catch — but the ball can still go foul, which negates the rule and is simply a foul ball."
+    correctText: "Still out, unless it goes foul",
+    distractors: ["Automatic double play", "Batter is safe", "It's a hit"],
+    explanation: "The batter is out either way — unless the ball rolls foul first."
   },
   {
     level: 5, category: 'offense', outs: 1, runners: { first:false, second:true, third:true },
     hit: { type:'ground', pos:'3B', label:'Sharp ground ball' },
     prompts: [
-      "Runners on 2nd and 3rd, 1 out (1st base open, no force at home). Sharp ground ball to a deep-playing third baseman. What should the runner on 3rd do?",
-      "1 out, runners on 2nd and 3rd, 1st base open. A hard grounder is fielded deep by the third baseman. What's 3rd's read?"
+      "You're the runner on 3rd. Runners on 2nd and 3rd, 1 out, 1st base open. A hard grounder is fielded deep by the third baseman. What do you do?",
+      "You're on 3rd, 1 out, runners on 2nd and 3rd, 1st open. A sharp grounder is fielded by the third baseman. What's your read?"
     ],
-    correctText: "Read it — go only if the throw home clearly can't beat him, since there's no force protecting him",
-    distractors: ["Always run home no matter what", "Always stay no matter what", "Run to the dugout"],
-    explanation: "With no force at home, the runner on 3rd must judge the fielder's position and arm before committing — a bad read costs an out with no force to hide behind."
+    correctText: "Go only if it's safe",
+    distractors: ["Always run home", "Always stay", "Run to the dugout"],
+    explanation: "No one is forcing you, so don't run into an easy out."
   },
   {
     level: 5, category: 'defense', outs: 1, runners: { first:true, second:true, third:false },
     hit: { type:'line', pos:'1B', label:'Line drive (caught)' },
     prompts: [
-      "Runners on 1st and 2nd, 1 out. Line drive is caught by the first baseman and both runners had broken early. What's the smartest defensive play?",
-      "1 out, 1st and 2nd both running on a line drive that's caught by the first baseman. What's the defense's best sequence?"
+      "You're on defense. Runners on 1st and 2nd, 1 out. A line drive is caught by the first baseman and both runners had taken off. What's the smartest play?",
+      "You're on defense. 1 out, 1st and 2nd both running on a line drive that's caught at first. What's your best play?"
     ],
-    correctText: "Step on 1st for the second out, then relay to 2nd for a possible triple play",
-    distractors: ["Throw home", "Just take the one out, nothing more to do", "Throw to 3rd only"],
-    explanation: "A line drive with both runners going can turn into a triple play: catch, step on 1st, relay to 2nd."
+    correctText: "Get 2 outs, then throw to 2nd",
+    distractors: ["Throw home", "Take one out only", "Throw to 3rd only"],
+    explanation: "If both runners left early, you might turn it into three outs."
   },
   {
     level: 5, category: 'offense', outs: 0, runners: { first:false, second:false, third:true },
     hit: { type:'bunt', pos:'H', label:'Suicide squeeze' },
     prompts: [
-      "Runner on 3rd, 0 outs, suicide squeeze is on — the runner breaks for home as the pitch is released. What must the batter do?",
-      "0 outs, 3rd base, suicide squeeze called. The runner is already sprinting home on the pitch. What's the batter's job?"
+      "You're the batter. Runner on 3rd, no outs, suicide squeeze is on — he's already running home. What must you do?",
+      "You're the batter, no outs, 3rd base, suicide squeeze called. Your teammate is sprinting home. What's your job?"
     ],
-    correctText: "Bunt the ball no matter what, even a bad pitch, to protect the runner",
-    distractors: ["Take the pitch to see if it's a strike", "Swing away for a hit", "Bunt only if it's a strike"],
-    explanation: "The runner is fully committed on a suicide squeeze — the batter must put the bat on the ball regardless of location."
+    correctText: "Bunt it no matter what",
+    distractors: ["Take the pitch", "Swing for a hit", "Bunt only strikes"],
+    explanation: "Your teammate is already running home — you must make contact."
   },
   {
     level: 5, category: 'defense', outs: 2, runners: { first:true, second:false, third:true },
     hit: { type:'ground', pos:'2B', label:'Ground ball' },
     prompts: [
-      "Runners on 1st and 3rd, 2 outs. Ground ball to the second baseman. Where's the play, and does the run from 3rd count if it's a force out?",
-      "2 outs, 1st and 3rd. A grounder is hit to second. If the defense gets the force, does the run from 3rd still count?"
+      "You're on defense. Runners on 1st and 3rd, 2 outs. A ground ball goes to the second baseman. Where's the play, and does the run from 3rd count?",
+      "You're on defense, 2 outs, 1st and 3rd. A grounder is hit to second. If you get the force, does the run from 3rd still count?"
     ],
-    correctText: "Throw to 1st for the force — since it's the 3rd out on a force play, the run from 3rd does NOT count even if he crosses home first",
-    distractors: ["Throw home — must stop the run directly", "Throw to 3rd base", "It doesn't matter, the run always counts"],
-    explanation: "A force out that ends the inning wipes out any run scored on the same play, even if the runner touched home a split second earlier."
+    correctText: "Throw to 1st — run doesn't count",
+    distractors: ["Throw home instead", "Throw to 3rd", "The run always counts"],
+    explanation: "If the last out is a force play, any run on that play doesn't count."
   },
   {
     level: 5, category: 'offense', outs: 2, runners: { first:true, second:false, third:true },
     hit: { type:'ground', pos:'2B', label:'Ground ball' },
     prompts: [
-      "Runners on 1st and 3rd, 2 outs. You hit a routine ground ball to the second baseman. If you're forced out at 1st, does the run from 3rd count?",
-      "2 outs, 1st and 3rd, you ground out on a force at 1st. Does the run that crossed from 3rd count?"
+      "You're the batter-runner. Runners on 1st and 3rd, 2 outs. You hit a ground ball to second and get forced out at 1st. Does the run from 3rd count?",
+      "You're the batter-runner, 2 outs, 1st and 3rd. You're forced out at 1st on a grounder. Does the run from 3rd count?"
     ],
-    correctText: "No — the 3rd out is a force at 1st, so the run does not count no matter when 3rd's runner crosses the plate",
-    distractors: ["Yes, the run always counts if he crosses before the throw arrives", "Yes, but only if he crosses before the ball is fielded", "It's up to the umpire's judgment"],
-    explanation: "Force-out rule: if the 3rd out of the inning is a force play, no run can score on that play, period."
+    correctText: "No, the run doesn't count",
+    distractors: ["Yes, it always counts", "Only if he's fast", "The umpire decides"],
+    explanation: "A force out for the final out wipes out the run, no matter the timing."
   },
   {
     level: 5, category: 'defense', outs: 1, runners: { first:true, second:true, third:true },
-    hit: { type:'fly', pos:'RF', label:'Deep fly' },
+    hit: { type:'fly', pos:'RF', label:'Fly ball' },
     prompts: [
-      "Bases loaded, 1 out. Deep fly ball to right field is caught. Every runner tags up. Where does the defense's throw go?",
-      "1 out, bases loaded, deep fly to right is caught and all three tag. Where should the throw go?"
+      "You're on defense. Bases loaded, 1 out. A fly ball to right field is caught. Every runner tags up. Where should your throw go?",
+      "You're on defense, 1 out, bases loaded, a fly ball to right is caught and all three tag up. Where should your throw go?"
     ],
-    correctText: "Home, through the cutoff man — the run is the priority, even if the trail runners also advance",
-    distractors: ["2nd base, to stop the runner from 1st", "1st base", "Nowhere — let everyone advance"],
-    explanation: "Preventing the run always outranks getting a trailing runner advancing to 2nd or 3rd."
+    correctText: "Throw home",
+    distractors: ["Throw to 2nd", "Throw to 1st", "Don't throw anywhere"],
+    explanation: "Stopping the run matters most, even with other runners moving too."
   },
   {
     level: 4, category: 'offense', outs: 0, runners: { first:true, second:false, third:false },
     hit: null,
     prompts: [
-      "Runner on 1st, 0 outs, and you've got a big secondary lead. The pitcher spins and throws behind you to 1st (a pick-off attempt). What should you do?",
-      "0 outs, 1st base, big secondary lead taken. Pitcher wheels and throws over to pick you off. What's your reaction?"
+      "You're the runner on 1st, no outs, you've taken a big lead. The pitcher spins and throws behind you to 1st. What should you do?",
+      "You're on 1st, no outs, big lead taken. The pitcher wheels and throws over to pick you off. What now?"
     ],
-    correctText: "Get back to the base immediately in a straight, safe path — don't get caught in a rundown",
-    distractors: ["Try to steal 2nd anyway", "Freeze and hope the throw misses", "Run toward the pitcher"],
-    explanation: "Getting picked off or caught in a rundown kills an inning — get back safely first, take chances later."
+    correctText: "Get back to base fast",
+    distractors: ["Try to steal anyway", "Freeze and hope", "Run toward the pitcher"],
+    explanation: "Getting picked off wastes an out — hustle back safely."
   },
   {
     level: 2, category: 'offense', outs: 0, runners: { first:false, second:false, third:false },
     hit: null,
     prompts: [
-      "You're the runner rounding 3rd base and your coach is giving you a stop sign. What should you do?",
-      "Rounding third, the base coach puts both hands up (stop sign). What's your move?"
+      "You're the runner rounding 3rd base and your coach gives you a stop sign. What should you do?",
+      "You're rounding third, and your coach puts both hands up (stop sign). What's your move?"
     ],
-    correctText: "Stop at 3rd — the coach has a better view of the outfielder and the ball than you do",
-    distractors: ["Ignore it and run home anyway", "Slow down but keep going", "Turn around and go back to 2nd"],
-    explanation: "The third base coach can see the outfielder's arm and positioning that the runner can't — always trust the stop sign."
+    correctText: "Stop at 3rd",
+    distractors: ["Run home anyway", "Slow down but keep going", "Go back to 2nd"],
+    explanation: "Your coach can see the ball better than you can — trust the stop sign."
   },
   {
     level: 2, category: 'defense', outs: 0, runners: { first:false, second:false, third:true },
     hit: { type:'ground', pos:'1B', label:'Comebacker' },
     prompts: [
-      "Runner on 3rd only, no outs. Slow roller fielded by the pitcher. What's the play?",
-      "No outs, runner on 3rd. A comebacker is fielded by the pitcher. Where's the safe out?"
+      "You're on defense. Runner on 3rd only, no outs. A slow roller is fielded by the pitcher. What's the play?",
+      "You're on defense, no outs, runner on 3rd. The pitcher fields a comebacker. Where's the safe out?"
     ],
-    correctText: "1st base — no force at 3rd, so take the sure out at first",
-    distractors: ["Home plate — force out", "3rd base — tag the runner", "2nd base"],
-    explanation: "With only 1st and 2nd open, the runner on 3rd isn't forced — go get the routine out at first."
+    correctText: "Throw to 1st",
+    distractors: ["Throw home", "Throw to 3rd", "Throw to 2nd"],
+    explanation: "The runner on 3rd isn't forced, so take the easy out at first."
   }
 ];
 

@@ -15,60 +15,82 @@
     <p>Read the diamond. Make the right call. Beat the clock.</p>
   </header>
 
-  <nav class="tabs">
-    <button id="tabPlay" class="active">Play</button>
-    <button id="tabHistory">History</button>
-  </nav>
-
-  <div class="scoreboard">
-    <div class="scorebox">
-      <div class="label">Score</div>
-      <div class="value" id="scoreVal">0</div>
+  <div id="splashScreen" class="splash">
+    <div class="splash-baseball">⚾</div>
+    <h2 class="splash-title">Think you know baseball?</h2>
+    <p class="splash-sub">Make the call on offense and defense, build a streak, and level up from Rookie all the way to Hall of Fame!</p>
+    <div class="level-ladder">
+      <span class="rung">🌱 Rookie</span>
+      <span class="rung">⚾ Little Leaguer</span>
+      <span class="rung">⭐ All-Star</span>
+      <span class="rung">🏆 Pro</span>
+      <span class="rung">👑 Hall of Fame</span>
     </div>
-    <div class="scorebox">
-      <div class="label">Streak</div>
-      <div class="value" id="streakVal">0</div>
-    </div>
-    <div class="scorebox">
-      <div class="label">Multiplier</div>
-      <div class="value" id="multVal">x1.0</div>
-    </div>
-    <div class="scorebox">
-      <div class="label">Best</div>
-      <div class="value" id="highScoreVal">0</div>
-    </div>
+    <button id="playBallBtn" class="play-ball-btn">PLAY BALL! ▶</button>
   </div>
 
-  <div id="playView" class="play-view" style="display:block;">
-    <div class="card">
-      <div class="level-badge" id="levelBadge">Level 1: Rookie</div>
-      <div style="font-size:0.8rem; opacity:0.7; margin-bottom:4px;">Level shown as <span id="levelVal">1 - Rookie</span></div>
+  <div id="gameMain" style="display:none;">
+    <nav class="tabs">
+      <button id="tabPlay" class="active">Play</button>
+      <button id="tabHistory">History</button>
+    </nav>
 
-      <div class="field-container" id="field"></div>
-
-      <div class="timer-track"><div class="timer-fill" id="timerFill"></div></div>
-
-      <span class="category-tag defense" id="categoryTag">Defense</span>
-      <div class="prompt" id="prompt">Loading question...</div>
-
-      <div class="choices" id="choices"></div>
-
-      <div class="feedback" id="feedback"></div>
-      <button class="next-btn" id="nextBtn" style="display:none;">Next Question →</button>
-    </div>
-  </div>
-
-  <div id="historyView" class="history-view" style="display:none;">
-    <div class="card">
-      <div class="history-controls">
-        <button id="filterAll" class="active">All</button>
-        <button id="filterCorrect">Correct</button>
-        <button id="filterWrong">Wrong</button>
-        <span class="spacer"></span>
-        <button id="clearHistoryBtn" class="danger">Clear history</button>
+    <div class="scoreboard">
+      <div class="scorebox">
+        <div class="label">Score</div>
+        <div class="value" id="scoreVal">0</div>
       </div>
-      <div class="history-stats" id="historyStats"></div>
-      <div class="history-list" id="historyList"></div>
+      <div class="scorebox">
+        <div class="label">Streak</div>
+        <div class="value" id="streakVal">0</div>
+      </div>
+      <div class="scorebox">
+        <div class="label">Multiplier</div>
+        <div class="value" id="multVal">x1.0</div>
+      </div>
+      <div class="scorebox">
+        <div class="label">Best</div>
+        <div class="value" id="highScoreVal">0</div>
+      </div>
+    </div>
+
+    <div id="playView" class="play-view" style="display:block;">
+      <div class="card">
+        <div class="level-badge-row">
+          <div class="level-badge" id="levelBadge">Level 1: Rookie</div>
+          <label class="mode-toggle">
+            <input type="checkbox" id="timeModeToggle">
+            <span class="switch"></span>
+            <span class="mode-label">⏱ Timer Mode</span>
+          </label>
+        </div>
+
+        <div class="field-container" id="field"></div>
+
+        <div class="timer-track" id="timerWrap"><div class="timer-fill" id="timerFill"></div></div>
+
+        <span class="category-tag defense" id="categoryTag">Defense</span>
+        <div class="prompt" id="prompt">Loading question...</div>
+
+        <div class="choices" id="choices"></div>
+
+        <div class="feedback" id="feedback"></div>
+        <button class="next-btn" id="nextBtn" style="display:none;">Next Question →</button>
+      </div>
+    </div>
+
+    <div id="historyView" class="history-view" style="display:none;">
+      <div class="card">
+        <div class="history-controls">
+          <button id="filterAll" class="active">All</button>
+          <button id="filterCorrect">Correct</button>
+          <button id="filterWrong">Wrong</button>
+          <span class="spacer"></span>
+          <button id="clearHistoryBtn" class="danger">Clear history</button>
+        </div>
+        <div class="history-stats" id="historyStats"></div>
+        <div class="history-list" id="historyList"></div>
+      </div>
     </div>
   </div>
 

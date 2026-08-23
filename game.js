@@ -12,6 +12,7 @@ const MAX_TIME = 15; // seconds
 const BASE_POINTS = 10;
 const HISTORY_KEY = 'baseballiq_history_v1';
 const HIGH_SCORE_KEY = 'baseballiq_highscore_v1';
+const TIME_MODE_KEY = 'baseballiq_timemode_v1';
 const RECENT_LIMIT = 25; // avoid repeating a question seen in the last N
 
 let state = {
@@ -22,6 +23,7 @@ let state = {
   level: 1,
   history: loadHistory(),
   highScore: Number(localStorage.getItem(HIGH_SCORE_KEY) || 0),
+  timeMode: localStorage.getItem(TIME_MODE_KEY) === 'true', // off by default
   recentPrompts: [],
   current: null,
   questionStart: 0,
@@ -64,10 +66,11 @@ const el = {
   scoreVal: document.getElementById('scoreVal'),
   streakVal: document.getElementById('streakVal'),
   multVal: document.getElementById('multVal'),
-  levelVal: document.getElementById('levelVal'),
   highScoreVal: document.getElementById('highScoreVal'),
   field: document.getElementById('field'),
+  timerWrap: document.getElementById('timerWrap'),
   timerFill: document.getElementById('timerFill'),
+  timeModeToggle: document.getElementById('timeModeToggle'),
   categoryTag: document.getElementById('categoryTag'),
   prompt: document.getElementById('prompt'),
   choices: document.getElementById('choices'),
@@ -95,7 +98,6 @@ function updateScoreboard() {
   const mult = streakMultiplier(state.streak);
   el.multVal.textContent = 'x' + mult.toFixed(1);
   el.streakVal.classList.toggle('streak-hot', state.streak >= 3);
-  el.levelVal.textContent = state.level + ' - ' + LEVEL_META[state.level].name;
   el.highScoreVal.textContent = state.highScore;
   el.levelBadge.textContent = 'Level ' + state.level + ': ' + LEVEL_META[state.level].name;
 }
@@ -107,6 +109,9 @@ function clearTimer() {
 function startTimer() {
   clearTimer();
   state.questionStart = performance.now();
+  el.timerWrap.style.display = state.timeMode ? 'block' : 'none';
+  if (!state.timeMode) return;
+  el.timerFill.style.width = '100%';
   function tick() {
     const elapsed = (performance.now() - state.questionStart) / 1000;
     const pct = Math.max(0, 1 - elapsed / MAX_TIME);
@@ -119,6 +124,13 @@ function startTimer() {
   }
   state.timerHandle = requestAnimationFrame(tick);
 }
+
+el.timeModeToggle.checked = state.timeMode;
+el.timeModeToggle.addEventListener('change', () => {
+  state.timeMode = el.timeModeToggle.checked;
+  localStorage.setItem(TIME_MODE_KEY, String(state.timeMode));
+  if (!state.answered) startTimer(); // restart timing for the question in progress
+});
 
 function showLevelUpToast(lvl) {
   el.levelupToast.textContent = '⬆ Leveled up! Now: ' + LEVEL_META[lvl].name;
@@ -174,7 +186,7 @@ function handleAnswer(chosenIdx, isTimeout) {
   if (isCorrect) {
     state.streak += 1;
     state.correctCount += 1;
-    const timeFactor = Math.max(0, (MAX_TIME - elapsedSec) / MAX_TIME);
+    const timeFactor = state.timeMode ? Math.max(0, (MAX_TIME - elapsedSec) / MAX_TIME) : 1;
     const mult = streakMultiplier(state.streak);
     pointsEarned = Math.round(BASE_POINTS * mult * timeFactor);
     state.score += pointsEarned;
@@ -300,4 +312,12 @@ function renderHistory() {
 // ---------------- Init ----------------
 state.level = levelForCorrectCount(state.correctCount);
 updateScoreboard();
-renderQuestion();
+
+const splashScreen = document.getElementById('splashScreen');
+const gameMain = document.getElementById('gameMain');
+const playBallBtn = document.getElementById('playBallBtn');
+playBallBtn.addEventListener('click', () => {
+  splashScreen.style.display = 'none';
+  gameMain.style.display = 'block';
+  renderQuestion();
+});
