@@ -204,10 +204,15 @@ function genOffenseGroundBall() {
     (base, rd, od, fl) => `You're on ${base}. ${rd}, ${od}. A ground ball is hit to the ${fl}. What do you do?`,
     (base, rd, od, fl) => `${rd}, ${od}. You're on ${base}, and the ${fl} fields a grounder. What's your move?`
   ];
-  const OPT_FORCED = (next) => `Run to ${next}`;
+  // "Run to {next base}" and "run because you're forced/it's 2 outs" describe
+  // the exact same physical action (sprint to the next base right now) — they
+  // aren't two different answers, just two justifications for one action. So
+  // there's a single "run" answer, always phrased as the destination, and the
+  // explanation is what varies (forced vs. the 2-out rule).
+  const OPT_RUN = (next) => `Run to ${next}`;
   const OPT_READ = `Wait and watch`;
-  const OPT_CONTACT2 = `Run no matter what`;
   const OPT_FREEZE = `Stay on your base`;
+  const OPT_TAGUP = `Tag up first`;
 
   for (const combo of RUNNER_COMBOS) {
     for (const base of bases) {
@@ -223,11 +228,11 @@ function genOffenseGroundBall() {
             let correctText, explanation, level;
             const oc = occupiedCount(combo);
             if (outs === 2) {
-              correctText = OPT_CONTACT2;
+              correctText = OPT_RUN(base.next);
               explanation = `With 2 outs, always run hard — nothing to lose.`;
               level = 2;
             } else if (forced) {
-              correctText = OPT_FORCED(base.next);
+              correctText = OPT_RUN(base.next);
               explanation = `The base behind you is full, so you have to run.`;
               level = oc === 1 ? 1 : oc === 2 ? 2 : 3;
             } else {
@@ -235,7 +240,7 @@ function genOffenseGroundBall() {
               explanation = `No one is making you run — only go if it's clearly safe.`;
               level = oc === 1 ? 2 : 3;
             }
-            const pool = [OPT_FORCED(base.next), OPT_READ, OPT_CONTACT2, OPT_FREEZE].filter(o => o !== correctText);
+            const pool = [OPT_RUN(base.next), OPT_READ, OPT_FREEZE, OPT_TAGUP].filter(o => o !== correctText);
             const distractors = shuffle(pool).slice(0, 3);
             items.push(makeItem({
               level: Math.max(1, Math.min(5, level)),
@@ -269,30 +274,41 @@ function genOffenseFlyBall() {
     { key: 'CF', label: 'center field' },
     { key: 'RF', label: 'right field' }
   ];
-  const templates = [
+  // Two different decision points get two different phrasings: with less than
+  // 2 outs, the question is about AFTER a confirmed catch (tag-up rules).
+  // With 2 outs, a caught fly is the 3rd out regardless of what the runner
+  // does — so there's nothing to decide "after" the catch. The real decision
+  // is AT CONTACT, before anyone knows if it'll be caught, which is why that
+  // version is phrased differently.
+  const templatesCaught = [
     (base, od, of) => `You're on ${base} base, ${od}. A fly ball to ${of} is caught. What do you do?`,
     (base, od, of) => `${od}. Runner on ${base}, a fly ball to ${of} gets caught. What's the right move?`
   ];
+  const templatesContact = [
+    (base, od, of) => `You're on ${base} base, ${od}. A fly ball is hit to ${of}. What do you do right at contact?`,
+    (base, od, of) => `${od}. Runner on ${base}, a fly ball is hit to ${of}. What's your move the instant it's hit?`
+  ];
   const OPT_TAG = `Tag up, then run`;
+  const OPT_CONTACT = `Take off running right at contact`;
+  const OPT_WAIT = `Wait to see if it drops`;
   const OPT_STAY = `Stay on your base`;
-  const OPT_GO2 = `Run right away`;
-  const OPT_EARLY = `Run before it's caught`;
 
   for (const base of bases) {
     for (let outs = 0; outs <= 2; outs++) {
       for (const of of OF) {
+        const templates = outs === 2 ? templatesContact : templatesCaught;
         for (const tmpl of templates) {
           let correctText, explanation, level;
           if (outs === 2) {
-            correctText = OPT_GO2;
-            explanation = `With 2 outs, a catch ends the inning anyway — so just run hard.`;
+            correctText = OPT_CONTACT;
+            explanation = `With 2 outs, a caught fly ends the inning no matter what you do — so break hard at contact. If it drops, you've got a head start.`;
             level = 2;
           } else {
             correctText = OPT_TAG;
             explanation = `Wait for the catch, touch your base, then run.`;
             level = 1;
           }
-          const pool = [OPT_TAG, OPT_STAY, OPT_GO2, OPT_EARLY].filter(o => o !== correctText);
+          const pool = [OPT_TAG, OPT_CONTACT, OPT_WAIT, OPT_STAY].filter(o => o !== correctText);
           items.push(makeItem({
             level, category: 'offense', outs,
             runners: { first:false, second: base.key==='second', third: base.key==='third' },
