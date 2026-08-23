@@ -132,12 +132,16 @@ function genDefenseGroundBall() {
             const level = [2, 3, 4, 5][validBases.length - 1];
             push(combo, outs, fielder, tmpl, level, correctText, shuffle(WRONG_POOL_2OUT).slice(0, 3), explanation);
           } else if (force) {
-            const correctText = THROW_TEXT[force];
-            const explanation = force === 'home'
-              ? `Bases loaded — everyone has to run, even the runner on 3rd. Get him at home.`
-              : `That runner has to run because the base behind him is full. That's the best out.`;
-            // 1 forced runner = easy, 2 forced (a chain) = tougher, bases loaded = toughest.
-            const level = oc === 1 ? 1 : oc === 2 ? 2 : 4;
+            // Easy out, not best out: whoever fields it, 2nd base is always
+            // the short, sure throw. Going for a lead runner at 3rd or home
+            // means a longer, harder throw — too much to ask of a young
+            // fielder (especially a pitcher having to spin all the way
+            // around), so we don't teach that as "the" answer here.
+            const correctText = THROW_TEXT['2nd'];
+            const explanation = oc === 1
+              ? `That runner has to run because 1st is full — 2nd is the easy, sure out.`
+              : `More than one runner is forced, but 2nd is still the easy out — no need to risk a longer throw for a fancier play.`;
+            const level = oc === 1 ? 1 : oc === 2 ? 2 : 3;
             const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
             push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
           } else if (combo === basesEmpty) {
