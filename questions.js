@@ -41,15 +41,29 @@ const OUTS_DESC = ['no outs', '1 out', '2 outs'];
 const THROW_TEXT = { '1st': 'Throw to 1st', '2nd': 'Throw to 2nd', '3rd': 'Throw to 3rd', home: 'Throw home' };
 const THROW_OPTIONS = Object.values(THROW_TEXT);
 
+// A fielder standing right on the base he needs doesn't throw there — he just
+// runs over and steps on it himself (most obviously the 1st baseman on a
+// comebacker, but the same is true for 2B/3B fielding near their own bag).
+const STEP_TEXT = { '1st': 'Run to 1st and step on the bag', '2nd': 'Step on 2nd yourself', '3rd': 'Step on 3rd yourself' };
+const FIELDER_OWN_BASE = { '1B': '1st', '2B': '2nd', '3B': '3rd' };
+
+function baseActionText(base, fielder) {
+  if (fielder && FIELDER_OWN_BASE[fielder.key] === base) return STEP_TEXT[base];
+  return THROW_TEXT[base];
+}
+function throwOptionsFor(fielder) {
+  return Object.keys(THROW_TEXT).map(b => baseActionText(b, fielder));
+}
+
 const RUNNER_COMBOS = [
-  { first:false, second:false, third:false, desc: 'bases empty' },
-  { first:true,  second:false, third:false, desc: 'a runner on 1st' },
-  { first:false, second:true,  third:false, desc: 'a runner on 2nd' },
-  { first:false, second:false, third:true,  desc: 'a runner on 3rd' },
-  { first:true,  second:true,  third:false, desc: 'runners on 1st and 2nd' },
-  { first:true,  second:false, third:true,  desc: 'runners on 1st and 3rd' },
-  { first:false, second:true,  third:true,  desc: 'runners on 2nd and 3rd' },
-  { first:true,  second:true,  third:true,  desc: 'the bases loaded' }
+  { first:false, second:false, third:false, desc: 'Bases are empty' },
+  { first:true,  second:false, third:false, desc: 'A runner is on 1st' },
+  { first:false, second:true,  third:false, desc: 'A runner is on 2nd' },
+  { first:false, second:false, third:true,  desc: 'A runner is on 3rd' },
+  { first:true,  second:true,  third:false, desc: 'Runners are on 1st and 2nd' },
+  { first:true,  second:false, third:true,  desc: 'Runners are on 1st and 3rd' },
+  { first:false, second:true,  third:true,  desc: 'Runners are on 2nd and 3rd' },
+  { first:true,  second:true,  third:true,  desc: 'The bases are loaded' }
 ];
 
 const FIELDERS = [
@@ -78,8 +92,8 @@ function allValidOutBases(r) {
   if (r.first && r.second && r.third) valid.push('home');
   return valid;
 }
-function combinedThrowText(bases) {
-  if (bases.length === 1) return THROW_TEXT[bases[0]];
+function combinedThrowText(bases, fielder) {
+  if (bases.length === 1) return baseActionText(bases[0], fielder);
   if (bases.length === 2) return `Throw to ${bases[0]} or ${bases[1]}`;
   return `Throw to the nearest bag`;
 }
@@ -99,8 +113,8 @@ const FAR_THROW_FIELDERS = ['3B', 'SS'];
 function genDefenseGroundBall() {
   const items = [];
   const templates = [
-    (rd, od, fl) => `You're on defense. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. Where's the play at?`,
-    (rd, od, fl) => `You're on defense, ${od}, with ${rd}. The ${fl} fields a grounder. Where's the play?`
+    (rd, od, fl) => `You're on defense. ${rd}, ${od}. A ground ball is hit to the ${fl}. Where's the play at?`,
+    (rd, od, fl) => `${rd}, ${od}. You're on defense. The ${fl} fields a grounder. Where's the play?`
   ];
   const WRONG_POOL_2OUT = ['Throw home no matter what', 'Always throw to 3rd', HOLD_TEXT];
   const basesEmpty = RUNNER_COMBOS[0];
@@ -125,7 +139,7 @@ function genDefenseGroundBall() {
         for (const tmpl of templates) {
           if (outs === 2) {
             const validBases = allValidOutBases(combo);
-            const correctText = combinedThrowText(validBases);
+            const correctText = combinedThrowText(validBases, fielder);
             const explanation = validBases.length > 1
               ? `With 2 outs, any out ends the inning — take whichever base is easiest.`
               : `1st base is open, so 1st is the only real out.`;
@@ -137,17 +151,21 @@ function genDefenseGroundBall() {
             // means a longer, harder throw — too much to ask of a young
             // fielder (especially a pitcher having to spin all the way
             // around), so we don't teach that as "the" answer here.
-            const correctText = THROW_TEXT['2nd'];
+            const correctText = baseActionText('2nd', fielder);
             const explanation = oc === 1
               ? `That runner has to run because 1st is full — 2nd is the easy, sure out.`
               : `More than one runner is forced, but 2nd is still the easy out — no need to risk a longer throw for a fancier play.`;
             const level = oc === 1 ? 1 : oc === 2 ? 2 : 3;
-            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            const distractors = shuffle([...throwOptionsFor(fielder).filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
             push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
           } else if (combo === basesEmpty) {
-            const correctText = THROW_TEXT['1st'];
-            const explanation = `Nobody's on base yet — 1st is the only play.`;
-            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            // No HOLD_TEXT here on purpose: with the bases empty, holding the
+            // ball has zero upside (no runner to protect against) and only
+            // guarantees the batter reaches free — offering it as a choice
+            // just looks like the 3B/SS "hold" rule flipping on you again.
+            const correctText = baseActionText('1st', fielder);
+            const explanation = `Nobody's on base yet — 1st is the only play, so you always make this out.`;
+            const distractors = shuffle(throwOptionsFor(fielder).filter(b => b !== correctText)).slice(0, 3);
             push(combo, outs, fielder, tmpl, 1, correctText, distractors, explanation);
           } else if (FAR_THROW_FIELDERS.includes(fielder.key)) {
             // No force here, and this is the long throw across the diamond —
@@ -155,14 +173,16 @@ function genDefenseGroundBall() {
             // overthrow. (Kept as one consistent answer at every level, so
             // the same-looking play never flips right/wrong on you later.)
             push(combo, outs, fielder, tmpl, oc === 1 ? 1 : 2, HOLD_TEXT,
-              shuffle(THROW_OPTIONS).slice(0, 3),
+              shuffle(throwOptionsFor(fielder)).slice(0, 3),
               `Nobody's forced to run here, and that's a long throw across the diamond — hold onto the ball instead of risking an overthrow.`);
           } else {
             // Short, easy throw (pitcher/2nd baseman) — safe even for young players.
-            const correctText = THROW_TEXT['1st'];
+            // (1st baseman also lands here when there's a runner on base and
+            // no force: he doesn't throw to his own bag, he just steps on it.)
+            const correctText = baseActionText('1st', fielder);
             const explanation = `1st base is open, so nobody else is forced to run — 1st base is the safe out.`;
             const level = oc === 1 ? 2 : 3;
-            const distractors = shuffle([...THROW_OPTIONS.filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
+            const distractors = shuffle([...throwOptionsFor(fielder).filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
             push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
           }
         }
@@ -181,8 +201,8 @@ function genOffenseGroundBall() {
     { key: 'third',  label: '3rd base', next: 'home plate' }
   ];
   const templates = [
-    (base, rd, od, fl) => `You're on ${base}. There's ${rd}, ${od}. A ground ball is hit to the ${fl}. What do you do?`,
-    (base, rd, od, fl) => `${od}, ${rd}. You're on ${base} and the ${fl} fields a grounder. What's your move?`
+    (base, rd, od, fl) => `You're on ${base}. ${rd}, ${od}. A ground ball is hit to the ${fl}. What do you do?`,
+    (base, rd, od, fl) => `${rd}, ${od}. You're on ${base}, and the ${fl} fields a grounder. What's your move?`
   ];
   const OPT_FORCED = (next) => `Run to ${next}`;
   const OPT_READ = `Wait and watch`;
@@ -328,8 +348,8 @@ function genDefenseCoverage() {
     { key: 'RF', label: 'right field', cutoff: 'First baseman', covers2nd: 'Shortstop' }
   ];
   const FLAVORS = [
-    (zoneLabel, rd) => `You're on defense. A single is hit to ${zoneLabel}, with ${rd}.`,
-    (zoneLabel, rd) => `You're on defense, with ${rd}. The batter rips one out to ${zoneLabel}.`
+    (zoneLabel, rd) => `You're on defense. ${rd}. A single is hit to ${zoneLabel}.`,
+    (zoneLabel, rd) => `You're on defense. ${rd}. The batter rips one out to ${zoneLabel}.`
   ];
   const FLAVOR_RUNNERS = [RUNNER_COMBOS[0], RUNNER_COMBOS[2], RUNNER_COMBOS[5]];
   const ALL_FIELDERS = ['Pitcher', 'Catcher', 'First baseman', 'Second baseman', 'Third baseman', 'Shortstop'];
@@ -359,6 +379,90 @@ function genDefenseCoverage() {
       }
     }
   }
+  return items;
+}
+
+// ---------- DEFENSE: outfield fundamentals — backing up plays, popup footwork ----------
+function genOutfieldFundamentals() {
+  const items = [];
+
+  // Each outfielder has a base they always back up on an infield throw there,
+  // in case the throw skips past the infielder.
+  const BACKUP_INFIELD = [
+    { backupFielder: 'right fielder', baseLabel: '1st base', posKey: '1B' },
+    { backupFielder: 'center fielder', baseLabel: '2nd base', posKey: '2B' },
+    { backupFielder: 'left fielder', baseLabel: '3rd base', posKey: '3B' }
+  ];
+  const INFIELDERS_FLAVOR = ['shortstop', 'second baseman', 'third baseman', 'pitcher'];
+  const backupTemplates = [
+    (who, fl, baseLabel) => `You're the ${who}. The ${fl} fields a grounder and throws to ${baseLabel}. What's your job?`,
+    (who, fl, baseLabel) => `You're playing ${who}. The ${fl} fields a ground ball and throws over to ${baseLabel}. What should you be doing?`
+  ];
+  const ALL_BACKUP_OPTIONS = ['Back up 1st base', 'Back up 2nd base', 'Back up 3rd base', 'Stay in position and watch'];
+
+  for (const b of BACKUP_INFIELD) {
+    for (const infielder of INFIELDERS_FLAVOR) {
+      for (const tmpl of backupTemplates) {
+        const correctText = `Back up ${b.baseLabel}`;
+        const distractors = shuffle(ALL_BACKUP_OPTIONS.filter(o => o !== correctText)).slice(0, 3);
+        items.push(makeItem({
+          level: 3, category: 'defense', outs: 0,
+          runners: { first:false, second:false, third:false },
+          hit: { type: 'ground', pos: b.posKey, label: 'Ground ball' },
+          prompt: tmpl(b.backupFielder, infielder, b.baseLabel),
+          correctText, distractors,
+          explanation: `The ${b.backupFielder} always backs up throws to ${b.baseLabel} on the infield, in case the throw gets away.`
+        }));
+      }
+    }
+  }
+
+  // Outfielder-to-outfielder backup: whichever corner outfielder ISN'T
+  // involved in a gap play should hustle over to back up the other two.
+  const GAP_BACKUPS = [
+    { gapLabel: 'the left-center field gap', backupFielder: 'right fielder', pos: 'CF' },
+    { gapLabel: 'the right-center field gap', backupFielder: 'left fielder', pos: 'CF' }
+  ];
+  const gapTemplates = [
+    (who, gapLabel) => `You're the ${who}. The ball is hit into ${gapLabel}. What do you do?`,
+    (who, gapLabel) => `You're playing ${who} and the ball is hit to ${gapLabel}. What's your move?`
+  ];
+  const WRONG_GAP_OPTIONS = ['Stay in your position', 'Run in to cover the infield', 'Run toward home plate'];
+  for (const g of GAP_BACKUPS) {
+    for (const tmpl of gapTemplates) {
+      items.push(makeItem({
+        level: 3, category: 'defense', outs: 0,
+        runners: { first:false, second:false, third:false },
+        hit: { type: 'fly', pos: g.pos, label: 'Gap shot' },
+        prompt: tmpl(g.backupFielder, g.gapLabel),
+        correctText: 'Hustle over to back up the play',
+        distractors: shuffle(WRONG_GAP_OPTIONS).slice(0, 3),
+        explanation: `You're not the one making the play, so hustle over to back up your teammates in case the ball gets past them.`
+      }));
+    }
+  }
+
+  // Popup footwork: the first move should always be backward.
+  const POPUP_POS = ['SS', '2B', '3B', '1B', 'LF', 'CF', 'RF'];
+  const popupTemplates = [
+    (fl) => `You're the ${fl}, and a popup goes up near you. What should your very first step be?`,
+    (fl) => `You're playing ${fl}. A popup is hit near you. What's the right first move?`
+  ];
+  const POS_LABEL = { SS:'shortstop', '2B':'second baseman', '3B':'third baseman', '1B':'first baseman', LF:'left fielder', CF:'center fielder', RF:'right fielder' };
+  for (const pos of POPUP_POS) {
+    for (const tmpl of popupTemplates) {
+      items.push(makeItem({
+        level: 2, category: 'defense', outs: 0,
+        runners: { first:false, second:false, third:false },
+        hit: { type: 'fly', pos, label: 'Popup' },
+        prompt: tmpl(POS_LABEL[pos]),
+        correctText: 'A step backward',
+        distractors: ['A step forward', 'Stand still and wait', 'Run straight in'],
+        explanation: `Always take your first step back on a popup — it's a lot easier to come in for a short ball than to backpedal for one that sails over your head.`
+      }));
+    }
+  }
+
   return items;
 }
 
@@ -645,7 +749,7 @@ const SPECIAL_SCENARIOS = [
   },
   {
     level: 2, category: 'defense', outs: 0, runners: { first:false, second:false, third:true },
-    hit: { type:'ground', pos:'1B', label:'Comebacker' },
+    hit: { type:'ground', pos:'P', label:'Comebacker' },
     prompts: [
       "You're on defense. Runner on 3rd only, no outs. A slow roller is fielded by the pitcher. What's the play?",
       "You're on defense, no outs, runner on 3rd. The pitcher fields a comebacker. Where's the safe out?"
@@ -675,5 +779,6 @@ const QUESTION_BANK = [
   ...genOffenseFlyBall(),
   ...genDefenseFlyBall(),
   ...genDefenseCoverage(),
+  ...genOutfieldFundamentals(),
   ...buildSpecialItems()
 ];
