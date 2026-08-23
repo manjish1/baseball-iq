@@ -266,7 +266,6 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
 .hit-circle { fill: rgba(255,255,255,0.85); stroke: var(--navy); stroke-width: 2; }
 .hit-circle.hit-fly { fill: rgba(120, 190, 255, 0.9); }
 .hit-circle.hit-line { fill: rgba(255, 150, 90, 0.9); }
-.hit-circle.hit-bunt { fill: rgba(180, 255, 150, 0.9); }
 .hit-icon { font-size: 14px; fill: var(--navy); font-weight: bold; }
 .hit-label {
   fill: #fff;

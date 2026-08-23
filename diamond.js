@@ -76,7 +76,7 @@ function renderDiamond(container, { runners, outs, hit }) {
   // Hit marker
   if (hit && hit.pos && FIELD_POS[hit.pos]) {
     const [fx, fy] = FIELD_POS[hit.pos];
-    const icon = hit.type === 'fly' ? '⬆' : hit.type === 'line' ? '➜' : hit.type === 'bunt' ? '⛳' : '●';
+    const icon = hit.type === 'fly' ? '⬆' : hit.type === 'line' ? '➜' : '●';
     const marker = svgEl('g', { class: 'hit-marker' });
     marker.appendChild(svgEl('circle', { cx: fx, cy: fy, r: 16, class: `hit-circle hit-${hit.type || 'ground'}` }));
     const text = svgEl('text', { x: fx, y: fy + 5, class: 'hit-icon', 'text-anchor': 'middle' });

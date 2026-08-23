@@ -9,9 +9,9 @@
    built for a young player learning the game.
 
    A smaller hand-written set covers special rules that don't
-   reduce to simple combinatorics (infield fly rule, force-outs
-   negating runs, squeeze plays, cutoff-man reads, etc.) — those
-   live in SPECIAL_SCENARIOS below.
+   reduce to simple combinatorics (force-outs negating runs,
+   cutoff-man reads, this league's no-stealing/no-bunting/no-IFR
+   rules, etc.) — those live in SPECIAL_SCENARIOS below.
    ============================================================ */
 
 function shuffle(arr) {
@@ -363,6 +363,10 @@ function genDefenseCoverage() {
 }
 
 // ---------- SPECIAL RULE SCENARIOS (hand-written, high-IQ concepts) ----------
+// Written to match actual NGBSA Peewee division rules (Spring '24): no
+// stealing/leading off, no bunting, and NO Infield Fly Rule — all different
+// from standard baseball, and worth teaching explicitly since kids often
+// pick up the "regular" rules from watching pros or older siblings play.
 const SPECIAL_SCENARIOS = [
   {
     level: 3, category: 'defense', outs: 0, runners: { first:true, second:true, third:false },
@@ -371,9 +375,9 @@ const SPECIAL_SCENARIOS = [
       "You're on defense. Runners on 1st and 2nd, less than 2 outs. The batter hits an easy popup over the infield. What's the call?",
       "You're on defense, less than 2 outs, runners on 1st and 2nd. An easy popup goes up over the infield. What happens?"
     ],
-    correctText: "Infield Fly — batter is out",
-    distractors: ["Not a special play", "Automatic double play", "Ground rule double"],
-    explanation: "Runners on 1st and 2nd, less than 2 outs, easy popup: the batter is out no matter what."
+    correctText: "No special rule — it must be caught for an out",
+    distractors: ["Infield Fly — batter is automatically out", "Automatic double play", "Ground rule double"],
+    explanation: "This league has NO Infield Fly Rule — it's just a regular fly ball. If it's dropped, nobody's out and the force is back on."
   },
   {
     level: 3, category: 'defense', outs: 1, runners: { first:true, second:true, third:true },
@@ -382,31 +386,31 @@ const SPECIAL_SCENARIOS = [
       "You're on defense. Bases loaded, 1 out. The batter hits an easy popup over the infield. What's the call?",
       "You're on defense, 1 out, bases loaded. An easy popup goes up over the infield. What's the ruling?"
     ],
-    correctText: "Infield Fly — batter is out",
-    distractors: ["Not a special play", "It's a force play only", "Ground rule double"],
-    explanation: "Bases loaded with less than 2 outs is also an Infield Fly — same rule."
+    correctText: "No special rule — it must be caught for an out",
+    distractors: ["Infield Fly — batter is automatically out", "It's a force play only", "Ground rule double"],
+    explanation: "No Infield Fly Rule in this league, even with the bases loaded — the defense has to actually catch it."
   },
   {
     level: 3, category: 'offense', outs: 0, runners: { first:true, second:true, third:false },
-    hit: { type:'fly', pos:'2B', label:'Infield popup (fly called)' },
+    hit: { type:'fly', pos:'2B', label:'Infield popup' },
     prompts: [
-      "You're a runner on 1st or 2nd. Infield Fly is called on a popup. What should you do?",
-      "You're one of the runners on 1st or 2nd when the umpire calls Infield Fly on a popup. What's the right move?"
+      "You're a runner on 1st or 2nd. The batter pops one up over the infield. What should you do?",
+      "You're one of the runners on 1st or 2nd. An easy popup goes up over the infield. What's the right move?"
     ],
-    correctText: "Stay near your base",
-    distractors: ["Sprint to the next base", "Both run home", "Ignore the play"],
-    explanation: "The batter's already out, so you don't have to run. Tag up if you want to move up."
+    correctText: "Stay near your base and be ready to tag up",
+    distractors: ["Run to the next base right away — the batter's automatically out", "Both run home", "Ignore the play"],
+    explanation: "There's no Infield Fly Rule here, so the batter isn't out until it's caught — don't wander off your base."
   },
   {
-    level: 4, category: 'defense', outs: 1, runners: { first:true, second:false, third:true },
+    level: 5, category: 'defense', outs: 0, runners: { first:true, second:false, third:true },
     hit: null,
     prompts: [
-      "You're the catcher. 1st and 3rd, 1 out. The runner on 1st takes off for 2nd. The runner on 3rd is inching down the line. What should you do?",
-      "You're the catcher, runners on 1st and 3rd, 1 out. 1st tries to steal 2nd, but 3rd is drifting off the bag. What's your read?"
+      "You're on defense. Runners on 1st and 3rd, no outs. You field a grounder and freeze the runner on 3rd by threatening to throw there — then instead throw to 2nd to get the runner from 1st. What happens to the runner on 3rd?",
+      "You're on defense, no outs, 1st and 3rd. You hold the ball on the runner at 3rd, then throw to 2nd for the runner coming from 1st instead. What about the runner on 3rd?"
     ],
-    correctText: "Check 3rd before throwing",
-    distractors: ["Always throw to 2nd", "Throw to 3rd right away", "Do nothing at all"],
-    explanation: "Never let a run score just to get the runner stealing 2nd."
+    correctText: "He's free to run home",
+    distractors: ["He's stuck at 3rd no matter what", "He's automatically out", "Play stops immediately"],
+    explanation: "This league's freeze rule: once the defense makes a play on a different runner, the frozen runner is live again and can try to advance."
   },
   {
     level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
@@ -432,14 +436,14 @@ const SPECIAL_SCENARIOS = [
   },
   {
     level: 3, category: 'offense', outs: 0, runners: { first:false, second:true, third:false },
-    hit: { type:'bunt', pos:'3B', label:'Sac bunt' },
+    hit: null,
     prompts: [
-      "You're the batter. Runner on 2nd, no outs. Your coach calls for a sacrifice bunt. What's the goal?",
-      "You're the batter, no outs, runner on 2nd. The bunt sign is on. Why?"
+      "You're the batter. Runner on 2nd, no outs. You want to help move the runner to 3rd. What's your plan?",
+      "You're the batter, no outs, runner on 2nd. You want to advance the runner. What's your plan?"
     ],
-    correctText: "Move the runner to 3rd",
-    distractors: ["Get a hit only", "Steal 3rd instead", "Take the pitch"],
-    explanation: "A bunt can trade an out to move the runner closer to home."
+    correctText: "Hit away — bunting isn't allowed in this league",
+    distractors: ["Lay down a sacrifice bunt", "Take the pitch and hope he steals", "Bunt it foul on purpose"],
+    explanation: "Bunting is banned in this league, so the only way to move a runner over is to hit the ball."
   },
   {
     level: 3, category: 'defense', outs: 0, runners: { first:true, second:false, third:false },
@@ -486,37 +490,70 @@ const SPECIAL_SCENARIOS = [
     explanation: "An outfielder's throw home always goes through the cutoff man first, so the defense can react."
   },
   {
-    level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
-    hit: { type:'bunt', pos:'3B', label:'Bunt' },
+    level: 3, category: 'offense', outs: 0, runners: { first:false, second:false, third:true },
+    hit: null,
     prompts: [
-      "You're on defense. Runner on 2nd, no outs. The batter bunts toward third. Where's the play?",
-      "You're on defense, no outs, runner on 2nd. A bunt rolls toward third. What's your move?"
+      "You're the runner on 3rd, no outs. You're rounding for home and the catcher is blocked up waiting for the ball right in front of the plate. What must you do?",
+      "You're on 3rd, no outs, heading for home. The catcher is set up in front of the plate with the ball coming. What are you required to do?"
     ],
-    correctText: "Throw to 1st",
-    distractors: ["Throw to 3rd", "Throw home", "Ignore the bunt"],
-    explanation: "The runner on 2nd isn't forced, so take the easy out at first."
+    correctText: "Slide to avoid the catcher",
+    distractors: ["Run through him", "Jump over him", "Stop and go back to 3rd"],
+    explanation: "This league requires runners to slide on plays at 2nd, 3rd, and home — you can't just run into the fielder."
   },
   {
-    level: 3, category: 'offense', outs: 1, runners: { first:true, second:false, third:false },
-    hit: { type:'bunt', pos:'1B', label:'Sac bunt' },
+    level: 2, category: 'offense', outs: 0, runners: { first:true, second:false, third:false },
+    hit: null,
     prompts: [
-      "You're the runner on 1st, 1 out. Your teammate lays down a sacrifice bunt. What must you do?",
-      "You're on 1st, 1 out. Your teammate bunts. What are you required to do?"
+      "You're the runner on 1st, no outs. The pitcher is set and about to deliver the pitch. What are you allowed to do?",
+      "You're on 1st, no outs, pitcher's about to throw. What can you legally do right now?"
     ],
-    correctText: "Run to 2nd",
-    distractors: ["Stay on 1st", "Run to 3rd", "Go to the dugout"],
-    explanation: "The batter needs 1st base, so you have to move up."
+    correctText: "Stay right on the bag until the ball is hit",
+    distractors: ["Take a big secondary lead", "Try to steal 2nd", "Walk halfway to 2nd"],
+    explanation: "No leading off and no stealing in this league — your foot can't leave the base until the ball is hit."
+  },
+  {
+    level: 5, category: 'offense', outs: 0, runners: { first:true, second:false, third:true },
+    hit: null,
+    prompts: [
+      "You're the runner on 3rd, no outs, runners on 1st and 3rd. The defense freezes you near the bag, then turns and throws to 2nd to get the runner from 1st instead. What should you do?",
+      "You're on 3rd, no outs, 1st and 3rd. The defense holds you at 3rd, then throws to 2nd for the other runner. What's your move?"
+    ],
+    correctText: "Take off for home — you're free now",
+    distractors: ["Stay frozen at 3rd no matter what", "You're automatically out", "Wait for the umpire to wave you on"],
+    explanation: "Once the defense makes a play on a different runner, you're no longer frozen and can try to score."
+  },
+  {
+    level: 5, category: 'offense', outs: 0, runners: { first:false, second:true, third:false },
+    hit: null,
+    prompts: [
+      "You're rounding the bases and, in the excitement, you miss stepping on 2nd base but keep going and touch 3rd. What happens?",
+      "You round the bases, skip over 2nd base by accident, and touch 3rd instead. What's the result?"
+    ],
+    correctText: "The umpire can call you out — no appeal needed",
+    distractors: ["Nothing, unless the defense appeals it", "You're safe since nobody complained", "You just have to go back and re-touch 2nd"],
+    explanation: "In this league, missing a base is a judgment call the umpire makes on their own — the defense doesn't even need to appeal it like in regular baseball."
+  },
+  {
+    level: 3, category: 'offense', outs: 0, runners: { first:false, second:true, third:false },
+    hit: null,
+    prompts: [
+      "You're the runner on 2nd trying to beat a tag at 3rd. Are you allowed to slide in headfirst?",
+      "You're on 2nd, sliding into 3rd to beat the throw. Can you go in headfirst?"
+    ],
+    correctText: "No — headfirst is only allowed going back to a base",
+    distractors: ["Yes, headfirst is always fine", "Only if you're the tying run", "Only on the last out of the inning"],
+    explanation: "Headfirst slides aren't allowed when advancing to a base in this league — feet first only. Headfirst is only okay when diving back to a base."
   },
   {
     level: 5, category: 'defense', outs: 0, runners: { first:true, second:true, third:false },
     hit: { type:'fly', pos:'3B', label:'Popup near foul line' },
     prompts: [
-      "You're on defense. Runners on 1st and 2nd, no outs. Infield Fly is already called on a popup near the foul line, and your fielder lets it drop. What happens?",
-      "You're on defense. Infield Fly is already called on a popup near the line, runners on 1st and 2nd. Your fielder lets it fall. What's the result?"
+      "You're on defense. Runners on 1st and 2nd, no outs. A popup drifts near the foul line and your fielder lets it drop untouched. What happens if it lands fair?",
+      "You're on defense. A popup drifts toward the line, runners on 1st and 2nd. Your fielder lets it fall untouched and it lands in fair territory. What's the result?"
     ],
-    correctText: "Still out, unless it goes foul",
-    distractors: ["Automatic double play", "Batter is safe", "It's a hit"],
-    explanation: "The batter is out either way — unless the ball rolls foul first."
+    correctText: "It's just a live fair ball — nobody's out",
+    distractors: ["The batter is automatically out", "Automatic double play", "It's a foul ball no matter what"],
+    explanation: "No Infield Fly Rule here — letting it drop doesn't create an out by itself. It's a live ball, and the defense still has to make a play."
   },
   {
     level: 5, category: 'offense', outs: 1, runners: { first:false, second:true, third:true },
@@ -541,15 +578,15 @@ const SPECIAL_SCENARIOS = [
     explanation: "If both runners left early, you might turn it into three outs."
   },
   {
-    level: 5, category: 'offense', outs: 0, runners: { first:false, second:false, third:true },
-    hit: { type:'bunt', pos:'H', label:'Suicide squeeze' },
+    level: 4, category: 'defense', outs: 0, runners: { first:false, second:true, third:false },
+    hit: null,
     prompts: [
-      "You're the batter. Runner on 3rd, no outs, suicide squeeze is on — he's already running home. What must you do?",
-      "You're the batter, no outs, 3rd base, suicide squeeze called. Your teammate is sprinting home. What's your job?"
+      "You're on defense. Runner on 2nd, no outs. Should your corner infielders crash in expecting a bunt?",
+      "You're on defense, no outs, runner on 2nd. Do you need to guard against a bunt here?"
     ],
-    correctText: "Bunt it no matter what",
-    distractors: ["Take the pitch", "Swing for a hit", "Bunt only strikes"],
-    explanation: "Your teammate is already running home — you must make contact."
+    correctText: "No — bunting isn't allowed in this league",
+    distractors: ["Yes, always guard the bunt", "Only with 2 outs", "Only if the batter is left-handed"],
+    explanation: "Since bunting is banned here, infielders can play back at normal depth instead of crashing in."
   },
   {
     level: 5, category: 'defense', outs: 2, runners: { first:true, second:false, third:true },
@@ -585,15 +622,15 @@ const SPECIAL_SCENARIOS = [
     explanation: "The throw from the outfield goes through the cutoff man, who then decides where it needs to go — stopping the run matters most."
   },
   {
-    level: 4, category: 'offense', outs: 0, runners: { first:true, second:false, third:false },
+    level: 4, category: 'offense', outs: 0, runners: { first:false, second:true, third:false },
     hit: null,
     prompts: [
-      "You're the runner on 1st, no outs, you've taken a big lead. The pitcher spins and throws behind you to 1st. What should you do?",
-      "You're on 1st, no outs, big lead taken. The pitcher wheels and throws over to pick you off. What now?"
+      "You're the runner on 2nd. A throw to 1st sails past the first baseman but stays in play near the fence. What can you do?",
+      "You're on 2nd. An overthrow at 1st stays in play by the fence. What's your move?"
     ],
-    correctText: "Get back to base fast",
-    distractors: ["Try to steal anyway", "Freeze and hope", "Run toward the pitcher"],
-    explanation: "Getting picked off wastes an out — hustle back safely."
+    correctText: "Try to advance — but it's at your own risk",
+    distractors: ["Nothing, the ball is automatically dead", "You must stay on 2nd", "You're awarded 3rd for free"],
+    explanation: "If an overthrow stays in the field of play, runners can try to advance, but the defense can still make a play — it's not a free base."
   },
   {
     level: 2, category: 'offense', outs: 0, runners: { first:false, second:false, third:false },
