@@ -24,10 +24,12 @@ function shuffle(arr) {
 
 // Build a {prompt, choices, correct, explanation, level, category, outs, runners, hit}
 // item from raw pieces, shuffling the choice order so the correct slot varies.
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
 function makeItem({ level, category, outs, runners, hit, prompt, correctText, distractors, explanation }) {
   const options = shuffle([correctText, ...distractors]);
   return {
-    level, category, outs, runners, hit, prompt,
+    level, category, outs, runners, hit, prompt: capitalize(prompt),
     choices: options,
     correct: options.indexOf(correctText),
     explanation
