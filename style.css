@@ -44,7 +44,7 @@ body::before {
   z-index: 1;
   max-width: 780px;
   margin: 0 auto;
-  padding: 16px 16px 60px;
+  padding: 12px 12px 30px;
 }
 
 header.app-header {
@@ -74,6 +74,28 @@ header.app-header p {
   text-transform: uppercase;
   padding: 4px 12px;
   border-radius: 14px;
+}
+
+.mini-header {
+  text-align: center;
+  padding: 10px 0 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.mini-header .mini-badge {
+  display: inline-block;
+  margin-left: 6px;
+  background: rgba(244,197,66,0.15);
+  border: 1px solid rgba(244,197,66,0.5);
+  color: var(--gold);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 10px;
+  vertical-align: middle;
 }
 
 .splash {
@@ -148,7 +170,7 @@ nav.tabs {
   display: flex;
   gap: 8px;
   justify-content: center;
-  margin: 14px 0;
+  margin: 8px 0;
 }
 nav.tabs button {
   background: var(--navy-light);
@@ -175,9 +197,9 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
   background: var(--navy);
   border: 3px solid var(--navy-light);
   border-radius: 10px;
-  padding: 12px 8px;
+  padding: 8px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 0 30px rgba(0,0,0,0.5);
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 .scorebox { text-align: center; }
 .scorebox .label {
@@ -199,7 +221,7 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
   background: rgba(11, 29, 51, 0.88);
   border: 1px solid rgba(244,197,66,0.25);
   border-radius: 14px;
-  padding: 18px;
+  padding: 14px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.35);
   backdrop-filter: blur(2px);
 }
@@ -263,8 +285,8 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
 
 .field-container {
   position: relative;
-  margin: 8px auto 14px;
-  max-width: 340px;
+  margin: 4px auto 8px;
+  max-width: 260px;
 }
 .diamond-svg { width: 100%; display: block; }
 .grass-outfield { fill: #256b38; }
@@ -293,7 +315,7 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
   align-items: center;
   justify-content: center;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 .outs-label {
   font-size: 0.7rem;
@@ -316,11 +338,11 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
 
 .timer-track {
   width: 100%;
-  height: 10px;
+  height: 8px;
   background: rgba(255,255,255,0.15);
   border-radius: 6px;
   overflow: hidden;
-  margin: 10px 0 16px;
+  margin: 8px 0 10px;
 }
 .timer-fill {
   height: 100%;
@@ -337,34 +359,35 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
   letter-spacing: 0.5px;
   padding: 2px 8px;
   border-radius: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .category-tag.defense { background: #2a4d7a; color: #cfe3ff; }
 .category-tag.offense { background: #7a4d2a; color: #ffe3cf; }
 
 .prompt {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 1.4;
-  margin: 6px 0 16px;
+  line-height: 1.35;
+  margin: 4px 0 10px;
 }
 
 .choices {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
-@media (max-width: 480px) {
+@media (max-width: 340px) {
   .choices { grid-template-columns: 1fr; }
 }
 .choice-btn {
   background: var(--navy-light);
   border: 2px solid rgba(244,197,66,0.3);
   color: var(--white);
-  padding: 12px 14px;
+  padding: 9px 10px;
   border-radius: 10px;
   cursor: pointer;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
+  line-height: 1.25;
   text-align: left;
   transition: all 0.12s;
 }
@@ -378,20 +401,20 @@ nav.tabs button:hover:not(.active) { border-color: var(--gold); }
 .choice-btn.reveal-correct { background: #1c5c33; border-color: var(--green-ok); }
 
 .feedback {
-  margin-top: 14px;
-  padding: 12px 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
-  font-size: 0.92rem;
-  line-height: 1.45;
+  font-size: 0.86rem;
+  line-height: 1.4;
 }
 .feedback.correct-fb { background: rgba(62,207,109,0.15); border: 1px solid rgba(62,207,109,0.5); }
 .feedback.wrong-fb { background: rgba(214,69,65,0.15); border: 1px solid rgba(214,69,65,0.5); }
 .feedback .points-earned { font-weight: 700; color: var(--gold); }
 
 .next-btn {
-  margin-top: 14px;
+  margin-top: 10px;
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   background: var(--gold);
   color: var(--navy);
   border: none;
@@ -473,3 +496,20 @@ footer.app-footer {
   font-size: 0.78rem;
 }
 footer.app-footer a { color: var(--gold); }
+
+/* Squeeze further on short phone screens (e.g. iPhone SE) so the play
+   screen fits without scrolling. */
+@media (max-height: 700px) {
+  .wrap { padding: 8px 10px 16px; }
+  .mini-header { padding: 4px 0 2px; font-size: 0.9rem; }
+  nav.tabs { margin: 6px 0; }
+  nav.tabs button { padding: 6px 14px; font-size: 0.85rem; }
+  .scoreboard { padding: 6px; margin-bottom: 8px; }
+  .scorebox .value { font-size: 1.2rem; }
+  .card { padding: 10px; }
+  .field-container { max-width: 190px; margin: 2px auto 4px; }
+  .level-badge-row { margin-bottom: 6px; }
+  .timer-track { margin: 6px 0 8px; }
+  .prompt { font-size: 0.94rem; margin: 4px 0 8px; }
+  .choice-btn { padding: 7px 9px; font-size: 0.8rem; }
+}

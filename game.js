@@ -334,8 +334,14 @@ updateScoreboard();
 const splashScreen = document.getElementById('splashScreen');
 const gameMain = document.getElementById('gameMain');
 const playBallBtn = document.getElementById('playBallBtn');
+const appHeader = document.getElementById('appHeader');
+const miniHeader = document.getElementById('miniHeader');
+const appFooter = document.getElementById('appFooter');
 playBallBtn.addEventListener('click', () => {
   splashScreen.style.display = 'none';
+  appHeader.style.display = 'none';
+  appFooter.style.display = 'none';
+  miniHeader.style.display = 'block';
   gameMain.style.display = 'block';
   renderQuestion();
 });
