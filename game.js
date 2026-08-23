@@ -13,7 +13,7 @@ const BASE_POINTS = 10;
 const HISTORY_KEY = 'baseballiq_history_v1';
 const HIGH_SCORE_KEY = 'baseballiq_highscore_v1';
 const TIME_MODE_KEY = 'baseballiq_timemode_v1';
-const RECENT_LIMIT = 25; // avoid repeating a question seen in the last N
+const SEEN_KEY = 'baseballiq_seen_v1'; // persists across sessions/devices-in-browser
 
 let state = {
   score: 0,
@@ -24,7 +24,7 @@ let state = {
   history: loadHistory(),
   highScore: Number(localStorage.getItem(HIGH_SCORE_KEY) || 0),
   timeMode: localStorage.getItem(TIME_MODE_KEY) === 'true', // off by default
-  recentPrompts: [],
+  seenByLevel: loadSeen(),
   current: null,
   questionStart: 0,
   timerHandle: null,
@@ -37,6 +37,14 @@ function loadHistory() {
 }
 function saveHistory() {
   localStorage.setItem(HISTORY_KEY, JSON.stringify(state.history.slice(-500)));
+}
+
+function loadSeen() {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveSeen() {
+  localStorage.setItem(SEEN_KEY, JSON.stringify(state.seenByLevel));
 }
 
 function levelForCorrectCount(n) {
@@ -52,18 +60,22 @@ function streakMultiplier(streak) {
   return Math.min(3, 1 + Math.floor((streak - 1) / 3) * 0.5);
 }
 
+// Draws from a persisted per-level "deck": every question at a level gets
+// shown once before any of them repeat, and that deck survives across page
+// reloads and separate sessions (stored in localStorage), not just the
+// current tab. Once the whole level has been seen, the deck reshuffles fresh.
 function pickQuestion() {
   const levelPool = QUESTION_BANK.filter(q => q.level === state.level);
-  // Never demand more "unseen" questions than a level actually has, or every
-  // pick past that point falls back to fully random (which can feel repetitive
-  // on thinner levels).
-  const window = Math.min(RECENT_LIMIT, Math.floor(levelPool.length * 0.7));
-  const recentSet = new Set(state.recentPrompts.slice(-window));
-  const pool = levelPool.filter(q => !recentSet.has(q.prompt));
-  const fallback = pool.length ? pool : levelPool;
-  const chosen = fallback[Math.floor(Math.random() * fallback.length)];
-  state.recentPrompts.push(chosen.prompt);
-  if (state.recentPrompts.length > RECENT_LIMIT) state.recentPrompts.shift();
+  const seen = new Set(state.seenByLevel[state.level] || []);
+  let unseen = levelPool.filter(q => !seen.has(q.prompt));
+  if (unseen.length === 0) {
+    seen.clear();
+    unseen = levelPool;
+  }
+  const chosen = unseen[Math.floor(Math.random() * unseen.length)];
+  seen.add(chosen.prompt);
+  state.seenByLevel[state.level] = [...seen];
+  saveSeen();
   return chosen;
 }
 
