@@ -146,15 +146,23 @@ function genDefenseGroundBall() {
             const level = [2, 3, 4, 5][validBases.length - 1];
             push(combo, outs, fielder, tmpl, level, correctText, shuffle(WRONG_POOL_2OUT).slice(0, 3), explanation);
           } else if (force) {
-            // Easy out, not best out: whoever fields it, 2nd base is always
-            // the short, sure throw. Going for a lead runner at 3rd or home
-            // means a longer, harder throw — too much to ask of a young
-            // fielder (especially a pitcher having to spin all the way
-            // around), so we do not teach that as "the" answer here.
-            const correctText = baseActionText('2nd', fielder);
-            const explanation = oc === 1
-              ? `That runner has to run because 1st is full, so 2nd is the easy, sure out.`
-              : `More than one runner is forced, but 2nd is still the easy out, so there is no need to risk a longer throw for a fancier play.`;
+            // Easy out, not best out. For infielders already stationed near
+            // 2nd (2B, SS, 3B), that force is the short, sure throw, and
+            // going for a lead runner at 3rd or home would be the longer,
+            // harder one. The pitcher is the one exception: he is not close
+            // to either bag, and a young pitcher's short, simple throw to
+            // 1st is far more reliable than trying to make a longer throw to
+            // a covering fielder at 2nd, so that is the taught answer for him.
+            const preferFirst = fielder.key === 'P';
+            const correctText = preferFirst ? baseActionText('1st', fielder) : baseActionText('2nd', fielder);
+            let explanation;
+            if (preferFirst) {
+              explanation = `The pitcher's easiest, most reliable throw is the short one to 1st, even though there is a force at 2nd.`;
+            } else if (oc === 1) {
+              explanation = `That runner has to run because 1st is full, so 2nd is the easy, sure out.`;
+            } else {
+              explanation = `More than one runner is forced, but 2nd is still the easy out, so there is no need to risk a longer throw for a fancier play.`;
+            }
             const level = oc === 1 ? 1 : oc === 2 ? 2 : 3;
             const distractors = shuffle([...throwOptionsFor(fielder).filter(b => b !== correctText), HOLD_TEXT]).slice(0, 3);
             push(combo, outs, fielder, tmpl, level, correctText, distractors, explanation);
